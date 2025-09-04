@@ -1,0 +1,98 @@
+name: PowerShell Script Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup PowerShell
+      shell: pwsh
+      run: |
+        Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
+        Write-Host "OS: $($PSVersionTable.OS)"
+    
+    - name: Install PSScriptAnalyzer
+      shell: pwsh
+      run: |
+        Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+    
+    - name: Run PSScriptAnalyzer
+      shell: pwsh
+      run: |
+        $results = @()
+        $scriptFiles = Get-ChildItem -Path "Scripts" -Recurse -Filter "*.ps1"
+        
+        foreach ($file in $scriptFiles) {
+          Write-Host "Analyzing: $($file.FullName)"
+          $analysis = Invoke-ScriptAnalyzer -Path $file.FullName -Severity Warning,Error
+          if ($analysis) {
+            $results += $analysis
+            $analysis | Format-Table -AutoSize
+          }
+        }
+        
+        if ($results.Count -gt 0) {
+          Write-Host "Found $($results.Count) issues that need attention."
+          exit 1
+        } else {
+          Write-Host "All scripts passed PSScriptAnalyzer validation!"
+        }
+    
+    - name: Test Script Syntax
+      shell: pwsh
+      run: |
+        $errors = @()
+        $scriptFiles = Get-ChildItem -Path "Scripts" -Recurse -Filter "*.ps1"
+        
+        foreach ($file in $scriptFiles) {
+          Write-Host "Testing syntax: $($file.Name)"
+          try {
+            $null = [System.Management.Automation.PSParser]::Tokenize((Get-Content $file.FullName -Raw), [ref]$null)
+            Write-Host "✅ $($file.Name) - Syntax OK"
+          }
+          catch {
+            Write-Host "$($file.Name) - Syntax Error: $($_.Exception.Message)"
+            $errors += $file.Name
+          }
+        }
+        
+        if ($errors.Count -gt 0) {
+          Write-Host "Scripts with syntax errors: $($errors -join ', ')"
+          exit 1
+        } else {
+          Write-Host "All scripts have valid syntax!"
+        }
+    
+    - name: Check Help Documentation
+      shell: pwsh
+      run: |
+        $issues = @()
+        $scriptFiles = Get-ChildItem -Path "Scripts" -Recurse -Filter "*.ps1"
+        
+        foreach ($file in $scriptFiles) {
+          Write-Host "Checking help documentation: $($file.Name)"
+          $content = Get-Content $file.FullName -Raw
+          
+          $requiredElements = @('.SYNOPSIS', '.DESCRIPTION', '.EXAMPLE', '.NOTES')
+          foreach ($element in $requiredElements) {
+            if ($content -notmatch $element) {
+              $issues += "$($file.Name) missing $element"
+            }
+          }
+        }
+        
+        if ($issues.Count -gt 0) {
+          Write-Host "Documentation issues found:"
+          $issues | ForEach-Object { Write-Host "$_" }
+          exit 1
+        } else {
+          Write-Host "All scripts have proper documentation!"
+        }

@@ -1,0 +1,40 @@
+# Logs
+*.log
+
+# Output files
+*.csv
+*.txt
+*.out
+
+# Temporary files
+*.tmp
+*.temp
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# PowerShell
+*.ps1xml
+
+# Local configuration files
+config.json
+settings.json
+
+# Backup files
+*.bak
+*.backup
+
+# IDE
+.vscode/
+*.code-workspace
+
+# Personal/sensitive information
+*password*
+*credential*
+*secret*
+
+# Test outputs
+test-output/
+reports/
