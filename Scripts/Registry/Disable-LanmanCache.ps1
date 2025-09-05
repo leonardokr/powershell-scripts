@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Disables LanmanWorkstation cache settings to improve network performance.
 
@@ -45,10 +45,8 @@
 param (
 )
 
-# Error handling
 $ErrorActionPreference = 'Stop'
 
-# Check if running as administrator
 function Test-Administrator {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
@@ -56,29 +54,24 @@ function Test-Administrator {
 }
 
 try {
-    Write-Host "Starting LanmanWorkstation cache disable process..." -ForegroundColor Green
+    Write-Information "Starting LanmanWorkstation cache disable process..." -InformationAction Continue
     
-    # Verify administrator privileges
     if (-not (Test-Administrator)) {
         throw "This script requires administrator privileges. Please run as administrator."
     }
     
-    # Define registry path and values
     $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"
+    Write-Information "Checking registry path: $regPath" -InformationAction Continue
     
-    Write-Host "Checking registry path: $regPath" -ForegroundColor Yellow
-    
-    # Ensure registry path exists
     if (-not (Test-Path $regPath)) {
-        Write-Host "Registry path does not exist. Creating: $regPath" -ForegroundColor Yellow
+        Write-Information "Registry path does not exist. Creating: $regPath" -InformationAction Continue
         
         if ($PSCmdlet.ShouldProcess($regPath, "Create registry path")) {
             New-Item -Path $regPath -Force | Out-Null
-            Write-Host "Registry path created successfully." -ForegroundColor Green
+            Write-Information "Registry path created successfully." -InformationAction Continue
         }
     }
     
-    # Define cache settings to disable
     $cacheSettings = @{
         "DirectoryCacheLifetime"      = 0
         "FileNotFoundCacheLifetime"   = 0
@@ -87,19 +80,18 @@ try {
         "FileInfoCacheEntriesMax"     = 0
     }
     
-    Write-Host "Applying cache disable settings..." -ForegroundColor Yellow
+    Write-Information "Applying cache disable settings..." -InformationAction Continue
     
-    # Apply each setting
     foreach ($setting in $cacheSettings.GetEnumerator()) {
         $settingName = $setting.Key
         $settingValue = $setting.Value
         
-        Write-Host "  Setting $settingName = $settingValue" -ForegroundColor Cyan
+        Write-Verbose "Setting $settingName = $settingValue"
         
         if ($PSCmdlet.ShouldProcess("$regPath\$settingName", "Set registry value to $settingValue")) {
             try {
                 New-ItemProperty -Path $regPath -Name $settingName -Value $settingValue -PropertyType DWord -Force | Out-Null
-                Write-Host "    Successfully set $settingName to $settingValue" -ForegroundColor Green
+                Write-Information "Successfully set $settingName to $settingValue" -InformationAction Continue
             }
             catch {
                 Write-Warning "Failed to set $settingName - $($_.Exception.Message)"
@@ -107,14 +99,13 @@ try {
         }
     }
     
-    Write-Host "`nLanmanWorkstation cache settings have been disabled successfully." -ForegroundColor Green
-    Write-Host "IMPORTANT: A system restart may be required for changes to take effect." -ForegroundColor Yellow
+    Write-Information "LanmanWorkstation cache settings have been disabled successfully." -InformationAction Continue
+    Write-Warning "IMPORTANT: A system restart may be required for changes to take effect."
     
-    # Offer to restart
     if (-not $WhatIf) {
         $restart = Read-Host "`nWould you like to restart the computer now? (y/N)"
         if ($restart -eq 'y' -or $restart -eq 'Y') {
-            Write-Host "Initiating system restart..." -ForegroundColor Yellow
+            Write-Information "Initiating system restart..." -InformationAction Continue
             Restart-Computer -Force
         }
     }
@@ -123,3 +114,6 @@ catch {
     Write-Error "An error occurred while disabling LanmanWorkstation cache - $($_.Exception.Message)"
     exit 1
 }
+
+
+

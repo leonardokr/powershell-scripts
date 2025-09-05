@@ -35,7 +35,7 @@
     File Name      : New-ShareAndDFS.ps1
     Author         : Leonardo Klein Rezende
     Prerequisite   : DFSN PowerShell module, Administrative privileges
-    Creation Date  : 2025-09-04
+    Creation Date  : 2025-09-05
     
     Requires:
     - Administrative privileges
@@ -47,7 +47,7 @@
     https://docs.microsoft.com/en-us/powershell/module/smbshare/
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param (
     [Parameter(Mandatory = $false)]
     [ValidateScript({Test-Path $_ -PathType Container})]
@@ -66,176 +66,178 @@ param (
     [switch]$EnableDebugMode
 )
 
-# Ensure log directory exists
-if (-not (Test-Path $LogPath)) {
-    New-Item -ItemType Directory -Path $LogPath -Force | Out-Null
-}
+# Error handling
+$ErrorActionPreference = 'Stop'
 
-$LogFile = Join-Path -Path $LogPath -ChildName "ShareDFSCreation_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-
-if ($EnableDebugMode) {
-    $watch = [Diagnostics.Stopwatch]::StartNew()
-    Start-Transcript -Path $LogFile
-}
-
-# Import required modules
-try {
-    Import-Module DFSN -ErrorAction Stop
-    Write-Host "DFS Namespace module loaded successfully." -ForegroundColor Green
-}
-catch {
-    Write-Error "Failed to load DFSN module. Please ensure DFS Management features are installed."
-    exit 1
-}
-
-try {
-    Import-Module SmbShare -ErrorAction Stop
-    Write-Host "SMB Share module loaded successfully." -ForegroundColor Green
-}
-catch {
-    Write-Error "Failed to load SmbShare module."
-    exit 1
-}
-
-function Write-ColorMessage {
-    <#
-    .SYNOPSIS
-        Writes colored messages to the console.
-    #>
-    param (
+# Logging function
+function Write-Log {
+    param(
         [string]$Message,
-        [ConsoleColor]$Color = [ConsoleColor]::White
+        [ValidateSet('Info', 'Warning', 'Error', 'Debug')]
+        [string]$Level = 'Info'
     )
-    Write-Host $Message -ForegroundColor $Color
+    
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "[$timestamp] [$Level] $Message"
+    
+    switch ($Level) {
+        'Info' { Write-Information $logMessage -InformationAction Continue }
+        'Warning' { Write-Warning $logMessage }
+        'Error' { Write-Error $logMessage }
+        'Debug' { if ($EnableDebugMode) { Write-Verbose $logMessage } }
+    }
 }
 
 function New-SMBShareSafe {
-    <#
-    .SYNOPSIS
-        Creates an SMB share with error handling.
-    #>
-    param (
-        [string]$FolderPath,
-        [string]$ShareName
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [string]$Name,
+        [string]$Path,
+        [string]$Description = ""
     )
     
-    $existingShare = Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue
-    if ($null -eq $existingShare) {
-        Write-ColorMessage "`n======== Creating share '$ShareName' for path '$FolderPath'... ========" -Color DarkGray
-        try {
-            New-SmbShare -Name $ShareName -Path $FolderPath -FullAccess "Everyone" -ErrorAction Stop
-            Write-ColorMessage "Share '$ShareName' created successfully." -Color Green
+    Write-Log "Creating SMB share: $Name" 'Debug'
+    
+    try {
+        $existingShare = Get-SmbShare -Name $Name -ErrorAction SilentlyContinue
+        if ($existingShare) {
+            Write-Log "SMB share '$Name' already exists" 'Warning'
             return $true
         }
-        catch {
-            Write-ColorMessage "Error creating share '$ShareName': $($_.Exception.Message)" -Color Red
-            return $false
+        
+        if ($PSCmdlet.ShouldProcess($Name, "Create SMB share")) {
+            New-SmbShare -Name $Name -Path $Path -Description $Description -FullAccess "Everyone"
+            Write-Log "SMB share '$Name' created successfully" 'Info'
+            return $true
         }
     }
-    else {
-        Write-ColorMessage "Share '$ShareName' already exists." -Color Yellow
-        return $true
+    catch {
+        Write-Log "Failed to create SMB share '$Name': $($_.Exception.Message)" 'Error'
+        return $false
     }
 }
 
 function New-DFSNamespaceSafe {
-    <#
-    .SYNOPSIS
-        Creates a DFS namespace with error handling.
-    #>
-    param (
-        [string]$NamespaceName,
-        [string]$TargetPath
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [string]$Name,
+        [string]$TargetPath,
+        [string]$NamespacePath
     )
-
-    $namespacePath = "$DomainNamespace\$NamespaceName"
-
-    $nsExists = Get-DfsnRoot -Path $namespacePath -ErrorAction SilentlyContinue
-    if ($null -eq $nsExists) {
-        Write-ColorMessage "Creating DFS namespace: '$namespacePath'..." -Color DarkGray
-        try {
-            New-DfsnRoot -Type DomainV2 -Path $namespacePath -TargetPath $TargetPath -ErrorAction Stop
-            Write-ColorMessage "DFS namespace '$namespacePath' created successfully." -Color Green
+    
+    Write-Log "Creating DFS namespace: $Name" 'Debug'
+    
+    try {
+        $dfsPath = "$NamespacePath\$Name"
+        $existingLink = Get-DfsnFolderTarget -Path $dfsPath -ErrorAction SilentlyContinue
+        if ($existingLink) {
+            Write-Log "DFS link '$dfsPath' already exists" 'Warning'
             return $true
         }
-        catch {
-            Write-ColorMessage "Error creating DFS namespace '$namespacePath': $($_.Exception.Message)" -Color Red
-            return $false
+        
+        if ($PSCmdlet.ShouldProcess($dfsPath, "Create DFS namespace link")) {
+            New-DfsnFolder -Path $dfsPath -TargetPath $TargetPath
+            Write-Log "DFS namespace '$dfsPath' created successfully" 'Info'
+            return $true
         }
     }
-    else {
-        Write-ColorMessage "DFS namespace '$namespacePath' already exists." -Color Yellow
-        return $true
+    catch {
+        Write-Log "Failed to create DFS namespace '$Name': $($_.Exception.Message)" 'Error'
+        return $false
     }
 }
 
 # Main execution
-Write-ColorMessage "Starting share and DFS creation process..." -Color Cyan
-Write-ColorMessage "Base path: $BasePath" -Color Gray
-Write-ColorMessage "Domain namespace: $DomainNamespace" -Color Gray
-Write-ColorMessage "Server name: $ServerName" -Color Gray
-
 try {
-    $folders = Get-ChildItem -Path $BasePath -Directory -ErrorAction Stop
-    $totalFolders = $folders.Count
-    $processedFolders = 0
-    $successCount = 0
-    $errorCount = 0
-
-    if ($totalFolders -eq 0) {
-        Write-ColorMessage "No folders found in $BasePath" -Color Yellow
-        exit 0
+    Write-Log "Starting SMB share and DFS namespace creation process" 'Info'
+    Write-Log "Base Path: $BasePath" 'Debug'
+    Write-Log "Domain Namespace: $DomainNamespace" 'Debug'
+    Write-Log "Server Name: $ServerName" 'Debug'
+    
+    # Verify prerequisites
+    if (-not (Get-Module -ListAvailable -Name DFSN)) {
+        throw "DFS Management PowerShell module is not available. Please install DFS Management features."
     }
-
-    Write-ColorMessage "Found $totalFolders folders to process." -Color White
-
+    
+    if (-not (Get-Module -ListAvailable -Name SmbShare)) {
+        throw "SMB Share PowerShell module is not available."
+    }
+    
+    # Import required modules
+    Import-Module DFSN -ErrorAction Stop
+    Import-Module SmbShare -ErrorAction Stop
+    
+    # Get all subdirectories
+    $folders = Get-ChildItem -Path $BasePath -Directory -ErrorAction Stop
+    
+    if ($folders.Count -eq 0) {
+        Write-Log "No folders found in $BasePath" 'Warning'
+        return
+    }
+    
+    Write-Log "Found $($folders.Count) folders to process" 'Info'
+    
+    $successCount = 0
+    $failureCount = 0
+    $results = @()
+    
+    # Process each folder
     foreach ($folder in $folders) {
-        $processedFolders++
         $folderName = $folder.Name
         $folderPath = $folder.FullName
-
-        Write-Progress -Activity "Creating Shares and DFS Namespaces" `
-                       -Status "Processing folder: $folderName ($processedFolders of $totalFolders)" `
-                       -PercentComplete (($processedFolders / $totalFolders) * 100)
-
-        Write-ColorMessage "`nProcessing folder: $folderName" -Color White
-
-        # Create SMB Share
-        $shareSuccess = New-SMBShareSafe -FolderPath $folderPath -ShareName $folderName
-
-        if ($shareSuccess) {
-            # Create DFS Namespace
-            $targetPath = "\\$ServerName.$($DomainNamespace.Split('\')[2])\$folderName"
-            $dfsSuccess = New-DFSNamespaceSafe -NamespaceName $folderName -TargetPath $targetPath
+        $shareName = $folderName
+        $shareTargetPath = "\\$ServerName\$shareName"
+        
+        Write-Log "Processing folder: $folderName" 'Info'
+        
+        try {
+            # Create SMB share
+            $shareResult = New-SMBShareSafe -Name $shareName -Path $folderPath -Description "Automated share for $folderName"
             
-            if ($shareSuccess -and $dfsSuccess) {
+            # Create DFS namespace link
+            $dfsResult = New-DFSNamespaceSafe -Name $folderName -TargetPath $shareTargetPath -NamespacePath $DomainNamespace
+            
+            if ($shareResult -and $dfsResult) {
                 $successCount++
-            } else {
-                $errorCount++
+                $status = 'Success'
+                $message = 'Share and DFS link created successfully'
             }
-        } else {
-            $errorCount++
+            else {
+                $failureCount++
+                $status = 'Partial'
+                $message = 'Some operations failed'
+            }
+        }
+        catch {
+            $failureCount++
+            $status = 'Failed'
+            $message = $_.Exception.Message
+            Write-Log "Failed to process folder '$folderName': $message" 'Error'
+        }
+        
+        $results += [PSCustomObject]@{
+            FolderName = $folderName
+            ShareName = $shareName
+            FolderPath = $folderPath
+            Status = $status
+            Message = $message
         }
     }
-
-    Write-Progress -Activity "Creating Shares and DFS Namespaces" -Completed
-
-    Write-ColorMessage "`n========== Summary ==========" -Color Cyan
-    Write-ColorMessage "Total folders processed: $totalFolders" -Color White
-    Write-ColorMessage "Successful operations: $successCount" -Color Green
-    Write-ColorMessage "Failed operations: $errorCount" -Color Red
+    
+    # Summary
+    Write-Log "Processing completed" 'Info'
+    Write-Log "Successful: $successCount folders" 'Info'
+    Write-Log "Failed: $failureCount folders" 'Info'
+    
+    # Output results
+    Write-Output $results
+    
+    if ($failureCount -gt 0) {
+        Write-Warning "Some operations failed. Check the log for details."
+        exit 1
+    }
 }
 catch {
-    Write-Error "Failed to enumerate folders in $BasePath`: $($_.Exception.Message)"
+    Write-Log "Process failed: $($_.Exception.Message)" 'Error'
     exit 1
 }
-
-if ($EnableDebugMode) {
-    $watch.Stop()
-    Write-ColorMessage "`nThe execution took $($watch.Elapsed) to run" -Color Gray
-    Write-ColorMessage "PID of this process: $([System.Diagnostics.Process]::GetCurrentProcess().Id)" -Color Gray
-    Write-ColorMessage "Log saved to: $LogFile" -Color Gray
-    Stop-Transcript
-}
-
-Write-ColorMessage "`nScript execution completed." -Color Cyan

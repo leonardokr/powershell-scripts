@@ -51,22 +51,19 @@ param (
     [int]$DumpCount = 50
 )
 
-# Error handling
 $ErrorActionPreference = 'Stop'
 
-# Check if running as administrator
 function Test-Administrator {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# Convert dump folder to absolute path if it's not an environment variable
 function Resolve-DumpPath {
     param([string]$Path)
     
     if ($Path.Contains('%')) {
-        return $Path  # Keep environment variables as-is
+        return $Path
     }
     else {
         return [System.IO.Path]::GetFullPath($Path)
@@ -74,32 +71,26 @@ function Resolve-DumpPath {
 }
 
 try {
-    Write-Host "Starting Windows Error Reporting full dump configuration..." -ForegroundColor Green
+    Write-Information "Starting Windows Error Reporting full dump configuration..." -InformationAction Continue
     
-    # Verify administrator privileges
     if (-not (Test-Administrator)) {
         throw "This script requires administrator privileges. Please run as administrator."
     }
     
-    # Define registry path
     $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"
+    Write-Information "Checking registry path: $regPath" -InformationAction Continue
     
-    Write-Host "Checking registry path: $regPath" -ForegroundColor Yellow
-    
-    # Ensure registry path exists
     if (-not (Test-Path $regPath)) {
-        Write-Host "Registry path does not exist. Creating: $regPath" -ForegroundColor Yellow
+        Write-Information "Registry path does not exist. Creating: $regPath" -InformationAction Continue
         
         if ($PSCmdlet.ShouldProcess($regPath, "Create registry path")) {
             New-Item -Path $regPath -Force | Out-Null
-            Write-Host "Registry path created successfully." -ForegroundColor Green
+            Write-Information "Registry path created successfully." -InformationAction Continue
         }
     }
     
-    # Resolve dump folder path
     $resolvedDumpFolder = Resolve-DumpPath -Path $DumpFolder
     
-    # Define dump settings
     $dumpSettings = @{
         "DumpFolder" = @{
             Value = $resolvedDumpFolder
@@ -118,12 +109,11 @@ try {
         }
     }
     
-    Write-Host "Configuring full dump settings..." -ForegroundColor Yellow
-    Write-Host "  Dump Folder: $resolvedDumpFolder" -ForegroundColor Cyan
-    Write-Host "  Dump Type: Full (2)" -ForegroundColor Cyan
-    Write-Host "  Max Dump Count: $DumpCount" -ForegroundColor Cyan
+    Write-Information "Configuring full dump settings:" -InformationAction Continue
+    Write-Verbose "Dump Folder: $resolvedDumpFolder"
+    Write-Verbose "Dump Type: Full (2)"
+    Write-Verbose "Max Dump Count: $DumpCount"
     
-    # Apply each setting
     foreach ($setting in $dumpSettings.GetEnumerator()) {
         $settingName = $setting.Key
         $settingData = $setting.Value
@@ -131,12 +121,12 @@ try {
         $settingType = $settingData.Type
         $description = $settingData.Description
         
-        Write-Host "`nConfiguring $description..." -ForegroundColor Yellow
+        Write-Verbose "Configuring $description..."
         
         if ($PSCmdlet.ShouldProcess("$regPath\$settingName", "Set registry value to $settingValue ($settingType)")) {
             try {
                 New-ItemProperty -Path $regPath -Name $settingName -Value $settingValue -PropertyType $settingType -Force | Out-Null
-                Write-Host "  Successfully set $settingName to $settingValue" -ForegroundColor Green
+                Write-Information "Successfully set $settingName to $settingValue" -InformationAction Continue
             }
             catch {
                 Write-Warning "Failed to set $settingName - $($_.Exception.Message)"
@@ -144,22 +134,19 @@ try {
         }
     }
     
-    Write-Host "`nWindows Error Reporting full dump collection has been enabled successfully." -ForegroundColor Green
+    Write-Information "Windows Error Reporting full dump collection has been enabled successfully." -InformationAction Continue
+    Write-Warning "IMPORTANT INFORMATION:"
+    Write-Information "• Full dumps can be very large (potentially GB-sized files)" -InformationAction Continue
+    Write-Information "• Ensure sufficient disk space is available in the dump folder" -InformationAction Continue
+    Write-Information "• Dumps are created automatically when applications crash" -InformationAction Continue
+    Write-Information "• Monitor disk usage regularly to prevent space issues" -InformationAction Continue
     
-    # Show important information
-    Write-Host "`nIMPORTANT INFORMATION:" -ForegroundColor Yellow
-    Write-Host "• Full dumps can be very large (potentially GB-sized files)" -ForegroundColor Cyan
-    Write-Host "• Ensure sufficient disk space is available in the dump folder" -ForegroundColor Cyan
-    Write-Host "• Dumps are created automatically when applications crash" -ForegroundColor Cyan
-    Write-Host "• Monitor disk usage regularly to prevent space issues" -ForegroundColor Cyan
-    
-    # Create dump folder if it doesn't contain environment variables and doesn't exist
     if (-not $resolvedDumpFolder.Contains('%')) {
         if (-not (Test-Path $resolvedDumpFolder)) {
-            Write-Host "`nCreating dump folder: $resolvedDumpFolder" -ForegroundColor Yellow
+            Write-Information "Creating dump folder: $resolvedDumpFolder" -InformationAction Continue
             if ($PSCmdlet.ShouldProcess($resolvedDumpFolder, "Create dump folder")) {
                 New-Item -Path $resolvedDumpFolder -ItemType Directory -Force | Out-Null
-                Write-Host "Dump folder created successfully." -ForegroundColor Green
+                Write-Information "Dump folder created successfully." -InformationAction Continue
             }
         }
     }

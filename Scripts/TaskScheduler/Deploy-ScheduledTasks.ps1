@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Deploys scheduled tasks to multiple remote servers.
 
@@ -44,18 +44,18 @@
     File Name      : Deploy-ScheduledTasks.ps1
     Author         : Leonardo Klein Rezende
     Prerequisite   : PowerShell remoting, Administrative access to target servers
-    Creation Date  : 2025-09-04
+    Creation Date  : 2025-09-05
     
     Requires:
     - PowerShell remoting enabled on target servers
     - Administrative privileges on target servers
-    - XML task definition file with same name as TaskName
+    - Task XML file included in FilesToCopy parameter
 
 .LINK
     https://docs.microsoft.com/en-us/powershell/module/scheduledtasks/
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param (
     [Parameter(Mandatory = $true)]
     [string]$TaskName,
@@ -79,161 +79,206 @@ param (
     [switch]$EnableDebugMode
 )
 
-# Ensure log directory exists
-if (-not (Test-Path $LogPath)) {
-    New-Item -ItemType Directory -Path $LogPath -Force | Out-Null
-}
+$ErrorActionPreference = 'Stop'
 
-$LogFile = Join-Path -Path $LogPath -ChildName "Deploy_ScheduledTasks_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-
-if ($EnableDebugMode) {
-    $watch = [Diagnostics.Stopwatch]::StartNew()
-    Start-Transcript -Path $LogFile
-}
-
-# Validate files exist locally
-Write-Host "Validating source files..." -ForegroundColor Cyan
-foreach ($file in $FilesToCopy) {
-    if (-not (Test-Path $file)) {
-        Write-Error "Source file not found: $file"
-        exit 1
+function Write-Log {
+    param(
+        [string]$Message,
+        [ValidateSet('Info', 'Warning', 'Error', 'Debug')]
+        [string]$Level = 'Info'
+    )
+    
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logMessage = "[$timestamp] [$Level] $Message"
+    
+    switch ($Level) {
+        'Info' { Write-Information $logMessage -InformationAction Continue }
+        'Warning' { Write-Warning $logMessage }
+        'Error' { Write-Error $logMessage }
+        'Debug' { if ($EnableDebugMode) { Write-Verbose $logMessage } }
     }
 }
-Write-Host "All source files validated successfully." -ForegroundColor Green
 
-Write-Host "`nStarting scheduled task deployment..." -ForegroundColor Cyan
-Write-Host "Task name: $TaskName" -ForegroundColor Gray
-Write-Host "Target servers: $($ServerList -join ', ')" -ForegroundColor Gray
-Write-Host "Target directory: $TargetDirectory" -ForegroundColor Gray
-Write-Host "Execute after register: $ExecuteAfterRegister" -ForegroundColor Gray
-
-$TotalServers = $ServerList.Count
-$ProcessedServers = 0
-$SuccessfulDeployments = 0
-$FailedDeployments = 0
-
-foreach ($server in $ServerList) {
-    $ProcessedServers++
-    Write-Progress -Activity "Deploying Scheduled Tasks" `
-                   -Status "Processing server $server ($ProcessedServers of $TotalServers)" `
-                   -PercentComplete (($ProcessedServers / $TotalServers) * 100)
+function Copy-FilesToServer {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [string]$ServerName,
+        [string[]]$Files,
+        [string]$TargetDir
+    )
     
-    Write-Host "`n========================================" -ForegroundColor DarkGray
-    Write-Host "Processing server: $server" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor DarkGray
-    
-    # Test server connectivity
-    if (-not (Test-Connection -ComputerName $server -Count 1 -Quiet)) {
-        Write-Host "Server $server is unreachable. Skipping..." -ForegroundColor Red
-        $FailedDeployments++
-        continue
-    }
+    Write-Log "Starting file deployment to $ServerName" 'Info'
     
     try {
-        # Create target directory on remote server
-        Write-Host "Creating target directory on $server..." -ForegroundColor Yellow
-        Invoke-Command -ComputerName $server -ScriptBlock {
-            param($TargetDir)
-            if (-not (Test-Path -Path $TargetDir)) {
-                New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
-                Write-Host "Created directory: $TargetDir" -ForegroundColor Green
-            } else {
-                Write-Host "Directory already exists: $TargetDir" -ForegroundColor Yellow
-            }
-        } -ArgumentList $TargetDirectory -ErrorAction Stop
+        $session = New-PSSession -ComputerName $ServerName -ErrorAction Stop
         
-        # Copy files to target server
-        Write-Host "Copying files to $server..." -ForegroundColor Yellow
-        foreach ($file in $FilesToCopy) {
-            try {
-                $fileName = Split-Path $file -Leaf
-                $remotePath = "\\$server\$($TargetDirectory.Replace(':','$'))\$fileName"
-                Copy-Item -Path $file -Destination $remotePath -Force -ErrorAction Stop
-                Write-Host "Copied: $fileName" -ForegroundColor Gray
-            }
-            catch {
-                Write-Host "Failed to copy $file`: $($_.Exception.Message)" -ForegroundColor Red
-                throw
-            }
+        if ($PSCmdlet.ShouldProcess($ServerName, "Create directory $TargetDir")) {
+            Invoke-Command -Session $session -ScriptBlock {
+                param($Dir)
+                if (-not (Test-Path $Dir)) {
+                    New-Item -Path $Dir -ItemType Directory -Force | Out-Null
+                    Write-Output "Created directory: $Dir"
+                }
+            } -ArgumentList $TargetDir
         }
         
-        # Remove existing task if it exists
-        Write-Host "Checking for existing task on $server..." -ForegroundColor Yellow
-        Invoke-Command -ComputerName $server -ScriptBlock {
-            param($TaskName)
-            $taskExists = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-            if ($taskExists) {
-                try {
-                    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction Stop
-                    Write-Host "Removed existing task: $TaskName" -ForegroundColor Yellow
-                }
-                catch {
-                    Write-Host "Failed to remove existing task: $($_.Exception.Message)" -ForegroundColor Red
-                    throw
-                }
-            }
-        } -ArgumentList $TaskName -ErrorAction Stop
-        
-        # Register new task
-        Write-Host "Registering scheduled task on $server..." -ForegroundColor Yellow
-        Invoke-Command -ComputerName $server -ScriptBlock {
-            param($TaskName, $TargetDir, $ExecuteAfter)
-            $xmlFile = Join-Path -Path $TargetDir -ChildPath "$TaskName.xml"
-            
-            if (Test-Path $xmlFile) {
-                try {
-                    $xmlContent = Get-Content -Path $xmlFile -Raw
-                    Register-ScheduledTask -Xml $xmlContent -TaskName $TaskName -ErrorAction Stop
-                    Write-Host "Task registered successfully: $TaskName" -ForegroundColor Green
-                    
-                    if ($ExecuteAfter) {
-                        Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop
-                        Write-Host "Task executed: $TaskName" -ForegroundColor Gray
-                    }
-                }
-                catch {
-                    Write-Host "Failed to register task: $($_.Exception.Message)" -ForegroundColor Red
-                    throw
+        foreach ($file in $Files) {
+            if (Test-Path $file) {
+                $fileName = Split-Path $file -Leaf
+                $remotePath = Join-Path $TargetDir $fileName
+                
+                if ($PSCmdlet.ShouldProcess($file, "Copy to $ServerName")) {
+                    Copy-Item -Path $file -Destination $remotePath -ToSession $session -Force
+                    Write-Log "Copied $fileName to $ServerName" 'Info'
                 }
             }
             else {
-                Write-Host "XML file not found: $xmlFile" -ForegroundColor Red
-                throw "Task definition file not found"
+                Write-Log "File not found: $file" 'Warning'
             }
-        } -ArgumentList $TaskName, $TargetDirectory, $ExecuteAfterRegister -ErrorAction Stop
+        }
         
-        Write-Host "Successfully completed deployment to $server" -ForegroundColor Green
-        $SuccessfulDeployments++
+        Remove-PSSession $session
+        Write-Log "File deployment to $ServerName completed successfully" 'Info'
     }
     catch {
-        Write-Host "Failed to deploy to $server`: $($_.Exception.Message)" -ForegroundColor Red
-        $FailedDeployments++
+        Write-Log "Failed to deploy files to $ServerName - $($_.Exception.Message)" 'Error'
+        if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+        throw
     }
 }
 
-Write-Progress -Activity "Deploying Scheduled Tasks" -Completed
-
-# Summary
-Write-Host "`n========================================" -ForegroundColor DarkGray
-Write-Host "DEPLOYMENT SUMMARY" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor DarkGray
-Write-Host "Total servers: $TotalServers" -ForegroundColor White
-Write-Host "Successful deployments: $SuccessfulDeployments" -ForegroundColor Green
-Write-Host "Failed deployments: $FailedDeployments" -ForegroundColor Red
-
-if ($EnableDebugMode) {
-    $watch.Stop()
-    Write-Host "`nExecution time: $($watch.Elapsed)" -ForegroundColor Gray
-    Write-Host "Process ID: $([System.Diagnostics.Process]::GetCurrentProcess().Id)" -ForegroundColor Gray
-    Write-Host "Log file: $LogFile" -ForegroundColor Gray
-    Stop-Transcript
+function Register-ScheduledTaskOnServer {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [string]$ServerName,
+        [string]$TaskName,
+        [string]$TargetDir,
+        [bool]$ExecuteAfter
+    )
+    
+    Write-Log "Registering scheduled task '$TaskName' on $ServerName" 'Info'
+    
+    try {
+        $session = New-PSSession -ComputerName $ServerName -ErrorAction Stop
+        
+        $result = Invoke-Command -Session $session -ScriptBlock {
+            param($TaskName, $TargetDir, $ExecuteAfter)
+            
+            $xmlFile = Get-ChildItem -Path $TargetDir -Filter "*.xml" | Where-Object { $_.Name -like "*$TaskName*" } | Select-Object -First 1
+            
+            if (-not $xmlFile) {
+                throw "Task XML file not found for '$TaskName' in $TargetDir"
+            }
+            
+            try {
+                Register-ScheduledTask -TaskName $TaskName -Xml (Get-Content $xmlFile.FullName | Out-String) -Force
+                $status = "Task '$TaskName' registered successfully"
+                
+                if ($ExecuteAfter) {
+                    Start-ScheduledTask -TaskName $TaskName
+                    $status += " and started"
+                }
+                
+                return @{ Success = $true; Message = $status }
+            }
+            catch {
+                return @{ Success = $false; Message = $_.Exception.Message }
+            }
+        } -ArgumentList $TaskName, $TargetDir, $ExecuteAfter
+        
+        Remove-PSSession $session
+        
+        if ($result.Success) {
+            Write-Log $result.Message 'Info'
+        }
+        else {
+            Write-Log "Failed to register task on $ServerName - $($result.Message)" 'Error'
+        }
+        
+        return $result.Success
+    }
+    catch {
+        Write-Log "Failed to register task on $ServerName - $($_.Exception.Message)" 'Error'
+        if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
+        return $false
+    }
 }
 
-Write-Host "`nScript execution completed." -ForegroundColor Cyan
-
-# Exit with appropriate code
-if ($FailedDeployments -gt 0) {
+try {
+    Write-Log "Starting scheduled task deployment process" 'Info'
+    Write-Log "Task Name: $TaskName" 'Debug'
+    Write-Log "Target Servers: $($ServerList -join ', ')" 'Debug'
+    Write-Log "Files to Copy: $($FilesToCopy -join ', ')" 'Debug'
+    Write-Log "Target Directory: $TargetDirectory" 'Debug'
+    
+    $missingFiles = $FilesToCopy | Where-Object { -not (Test-Path $_) }
+    if ($missingFiles) {
+        throw "Missing files: $($missingFiles -join ', ')"
+    }
+    
+    $xmlFile = $FilesToCopy | Where-Object { $_.EndsWith('.xml') }
+    if (-not $xmlFile) {
+        throw "No XML task definition file found in FilesToCopy parameter"
+    }
+    
+    $successCount = 0
+    $failureCount = 0
+    $results = @()
+    
+    foreach ($server in $ServerList) {
+        Write-Log "Processing server: $server" 'Info'
+        
+        try {
+            if (-not (Test-NetConnection -ComputerName $server -Port 5985 -InformationLevel Quiet)) {
+                throw "Cannot connect to $server on port 5985 (WinRM)"
+            }
+            
+            Copy-FilesToServer -ServerName $server -Files $FilesToCopy -TargetDir $TargetDirectory
+            
+            $taskResult = Register-ScheduledTaskOnServer -ServerName $server -TaskName $TaskName -TargetDir $TargetDirectory -ExecuteAfter $ExecuteAfterRegister
+            
+            if ($taskResult) {
+                $successCount++
+                $results += [PSCustomObject]@{
+                    Server  = $server
+                    Status  = 'Success'
+                    Message = 'Task deployed successfully'
+                }
+            }
+            else {
+                $failureCount++
+                $results += [PSCustomObject]@{
+                    Server  = $server
+                    Status  = 'Failed'
+                    Message = 'Task registration failed'
+                }
+            }
+        }
+        catch {
+            $failureCount++
+            $errorMessage = $_.Exception.Message
+            Write-Log "Server $server failed: $errorMessage" 'Error'
+            
+            $results += [PSCustomObject]@{
+                Server  = $server
+                Status  = 'Failed'
+                Message = $errorMessage
+            }
+        }
+    }
+    
+    Write-Log "Deployment completed" 'Info'
+    Write-Log "Success: $successCount servers" 'Info'
+    Write-Log "Failed: $failureCount servers" 'Info'
+    
+    Write-Output $results
+    
+    if ($failureCount -gt 0) {
+        Write-Warning "Some deployments failed. Check the log for details."
+        exit 1
+    }
+}
+catch {
+    Write-Log "Deployment process failed: $($_.Exception.Message)" 'Error'
     exit 1
-} else {
-    exit 0
 }

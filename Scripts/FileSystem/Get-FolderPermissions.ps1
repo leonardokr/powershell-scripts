@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Audits folder permissions across multiple servers and exports results to CSV.
 
@@ -63,12 +63,11 @@ param (
     [int]$MaxDepth = -1
 )
 
-# Construct full output path
 $OutputFilePath = Join-Path -Path $OutputPath -ChildPath $FileName
 
-Write-Host "Starting folder permissions audit..." -ForegroundColor Cyan
-Write-Host "Target servers: $($ServerList -join ', ')" -ForegroundColor Gray
-Write-Host "Base path: $BasePath" -ForegroundColor Gray
+Write-Information "Starting folder permissions audit..." -InformationAction Continue
+Write-Information "Target servers: $($ServerList -join ', ')" -InformationAction Continue
+Write-Information "Base path: $BasePath" -InformationAction Continue
 
 $Report = @()
 $ProcessedServers = 0
@@ -80,19 +79,16 @@ foreach ($Server in $ServerList) {
                    -Status "Processing server $Server ($ProcessedServers of $TotalServers)" `
                    -PercentComplete (($ProcessedServers / $TotalServers) * 100)
     
-    Write-Host "Processing server: $Server" -ForegroundColor Yellow
+    Write-Information "Processing server: $Server" -InformationAction Continue
     
-    # Test server connectivity
     if (-not (Test-Connection -ComputerName $Server -Count 1 -Quiet)) {
         Write-Warning "Server $Server is not reachable. Skipping..."
         continue
     }
     
     try {
-        # Construct UNC path
         $UNCPath = "\\$Server\$BasePath"
         
-        # Get folder structure with optional depth limit
         $GetChildItemParams = @{
             Path = $UNCPath
             Directory = $true
@@ -129,7 +125,7 @@ foreach ($Server in $ServerList) {
             }
         }
         
-        Write-Host "Completed scanning server: $Server" -ForegroundColor Green
+        Write-Information "Completed scanning server: $Server" -InformationAction Continue
     }
     catch {
         Write-Warning "Failed to process server $Server`: $($_.Exception.Message)"
@@ -142,9 +138,9 @@ if ($Report.Count -gt 0) {
     try {
         $Report | Export-Csv -Path $OutputFilePath -Encoding UTF8 -NoTypeInformation
         
-        Write-Host "Audit completed successfully!" -ForegroundColor Green
-        Write-Host "Total permission entries: $($Report.Count)" -ForegroundColor Yellow
-        Write-Host "Report saved to: $OutputFilePath" -ForegroundColor White
+        Write-Information "Audit completed successfully!" -InformationAction Continue
+        Write-Information "Total permission entries: $($Report.Count)" -InformationAction Continue
+        Write-Information "Report saved to: $OutputFilePath" -InformationAction Continue
     }
     catch {
         Write-Error "Failed to export report: $($_.Exception.Message)"
@@ -152,7 +148,12 @@ if ($Report.Count -gt 0) {
     }
 }
 else {
-    Write-Host "No folder permissions found or all servers were unreachable." -ForegroundColor Yellow
+    Write-Information "No folder permissions found or all servers were unreachable." -InformationAction Continue
 }
 
-Write-Host "Script execution completed." -ForegroundColor Cyan
+Write-Information "Script execution completed." -InformationAction Continue
+
+
+
+
+

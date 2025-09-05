@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Removes Windows user profiles that no longer have corresponding folders.
 
@@ -66,13 +66,11 @@ param (
     [string]$OutputPath = $PWD.Path
 )
 
-# Require administrative privileges
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Error "This script requires administrative privileges. Please run as Administrator."
     exit 1
 }
 
-# Ensure log directory exists
 if (-not (Test-Path $LogPath)) {
     New-Item -ItemType Directory -Path $LogPath -Force | Out-Null
 }
@@ -82,17 +80,16 @@ $ReportFile = Join-Path -Path $OutputPath -ChildName "OrphanedProfiles_$(Get-Dat
 
 Start-Transcript -Path $LogFile
 
-Write-Host "Starting orphaned profile cleanup..." -ForegroundColor Cyan
-Write-Host "Mode: $(if($RemoveProfiles){'REMOVAL'}else{'REPORT ONLY'})" -ForegroundColor $(if($RemoveProfiles){'Red'}else{'Yellow'})
-Write-Host "Report will be saved to: $ReportFile" -ForegroundColor Gray
+Write-Information "Starting orphaned profile cleanup..." -InformationAction Continue
+$mode = if($RemoveProfiles){'REMOVAL'}else{'REPORT ONLY'}
+Write-Information "Mode: $mode" -InformationAction Continue
+Write-Information "Report will be saved to: $ReportFile" -InformationAction Continue
 
-# Registry path for user profiles
 $ProfileListPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList"
 
 try {
-    # Get the default profiles directory
     $ProfilesDirectory = Get-ItemPropertyValue -Path $ProfileListPath -Name "ProfilesDirectory" -ErrorAction Stop
-    Write-Host "Profiles directory: $ProfilesDirectory" -ForegroundColor Gray
+    Write-Information "Profiles directory: $ProfilesDirectory" -InformationAction Continue
 }
 catch {
     Write-Error "Failed to get profiles directory from registry: $($_.Exception.Message)"
@@ -105,12 +102,11 @@ $OrphanedCount = 0
 $RemovedCount = 0
 
 try {
-    # Get all profile registry entries
     $ProfileEntries = Get-ChildItem -Path $ProfileListPath -ErrorAction Stop | 
                      Where-Object { $_.PSChildName -notin $ExcludedSIDs }
     
     $TotalProfiles = $ProfileEntries.Count
-    Write-Host "Found $TotalProfiles user profiles to check (excluding system accounts)." -ForegroundColor White
+    Write-Information "Found $TotalProfiles user profiles to check (excluding system accounts)." -InformationAction Continue
     
     foreach ($ProfileEntry in $ProfileEntries) {
         $ProcessedProfiles++
@@ -121,19 +117,15 @@ try {
                        -PercentComplete (($ProcessedProfiles / $TotalProfiles) * 100)
         
         try {
-            # Get profile path from registry
             $ProfilePath = Get-ItemPropertyValue -Path $ProfileEntry.PSPath -Name "ProfileImagePath" -ErrorAction Stop
             
-            # Check if this is a .bak profile (backup/orphaned)
-            $IsBackupProfile = $ProfileSID -like "*.bak"
+                        $IsBackupProfile = $ProfileSID -like "*.bak"
             
-            # Check if profile folder exists
-            $FolderExists = Test-Path -Path $ProfilePath
+                        $FolderExists = Test-Path -Path $ProfilePath
             
             if ($IsBackupProfile -or -not $FolderExists) {
                 $OrphanedCount++
                 
-                # Get additional profile information
                 try {
                     $ProfileState = Get-ItemPropertyValue -Path $ProfileEntry.PSPath -Name "State" -ErrorAction SilentlyContinue
                     $LastUseTime = Get-ItemPropertyValue -Path $ProfileEntry.PSPath -Name "ProfileLoadTimeLow" -ErrorAction SilentlyContinue
@@ -156,20 +148,20 @@ try {
                 
                 if ($RemoveProfiles) {
                     try {
-                        Write-Host "Removing orphaned profile: $ProfileSID" -ForegroundColor Yellow
+                        Write-Information "Removing orphaned profile: $ProfileSID" -InformationAction Continue
                         Remove-Item -Path $ProfileEntry.PSPath -Recurse -Force -ErrorAction Stop
                         
                         $ProfileInfo.Action = "Removed"
                         $RemovedCount++
-                        Write-Host "Successfully removed profile: $ProfileSID" -ForegroundColor Green
+                        Write-Information "Successfully removed profile: $ProfileSID" -InformationAction Continue
                     }
                     catch {
                         $ProfileInfo.Action = "Failed to remove: $($_.Exception.Message)"
-                        Write-Host "Failed to remove profile $ProfileSID`: $($_.Exception.Message)" -ForegroundColor Red
+                        Write-Information "Failed to remove profile $ProfileSID`: $($_.Exception.Message)" -InformationAction Continue
                     }
                 } else {
                     $ProfileInfo.Action = "Would be removed (report mode)"
-                    Write-Host "Found orphaned profile: $ProfileSID -> $ProfilePath" -ForegroundColor Yellow
+                    Write-Information "Found orphaned profile: $ProfileSID -> $ProfilePath" -InformationAction Continue
                 }
                 
                 $OrphanedProfiles += $ProfileInfo
@@ -182,28 +174,26 @@ try {
     
     Write-Progress -Activity "Checking User Profiles" -Completed
     
-    # Export report
     if ($OrphanedProfiles.Count -gt 0) {
         $OrphanedProfiles | Export-Csv -Path $ReportFile -NoTypeInformation -Encoding UTF8
-        Write-Host "`nReport exported to: $ReportFile" -ForegroundColor White
+        Write-Information "`nReport exported to: $ReportFile" -InformationAction Continue
     }
     
-    # Summary
-    Write-Host "`n========================================" -ForegroundColor DarkGray
-    Write-Host "CLEANUP SUMMARY" -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor DarkGray
-    Write-Host "Total profiles checked: $ProcessedProfiles" -ForegroundColor White
-    Write-Host "Orphaned profiles found: $OrphanedCount" -ForegroundColor Yellow
+    Write-Information "`n========================================" -InformationAction Continue
+    Write-Information "CLEANUP SUMMARY" -InformationAction Continue
+    Write-Information "========================================" -InformationAction Continue
+    Write-Information "Total profiles checked: $ProcessedProfiles" -InformationAction Continue
+    Write-Information "Orphaned profiles found: $OrphanedCount" -InformationAction Continue
     
     if ($RemoveProfiles) {
-        Write-Host "Profiles successfully removed: $RemovedCount" -ForegroundColor Green
-        Write-Host "Profiles failed to remove: $($OrphanedCount - $RemovedCount)" -ForegroundColor Red
+        Write-Information "Profiles successfully removed: $RemovedCount" -InformationAction Continue
+        Write-Information "Profiles failed to remove: $($OrphanedCount - $RemovedCount)" -InformationAction Continue
     } else {
-        Write-Host "Run with -RemoveProfiles switch to actually remove orphaned profiles." -ForegroundColor Yellow
+        Write-Information "Run with -RemoveProfiles switch to actually remove orphaned profiles." -InformationAction Continue
     }
     
     if ($OrphanedProfiles.Count -eq 0) {
-        Write-Host "No orphaned profiles found!" -ForegroundColor Green
+        Write-Information "No orphaned profiles found!" -InformationAction Continue
     }
 }
 catch {
@@ -211,7 +201,12 @@ catch {
     exit 1
 }
 
-Write-Host "`nLog saved to: $LogFile" -ForegroundColor Gray
-Write-Host "Script execution completed." -ForegroundColor Cyan
+Write-Information "`nLog saved to: $LogFile" -InformationAction Continue
+Write-Information "Script execution completed." -InformationAction Continue
 
 Stop-Transcript
+
+
+
+
+

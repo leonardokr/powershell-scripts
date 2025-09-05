@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Reports Active Directory user last logon times and group memberships.
 
@@ -58,31 +58,27 @@ param (
     [switch]$IncludeDisabledUsers
 )
 
-# Import required module
 try {
     Import-Module ActiveDirectory -ErrorAction Stop
-    Write-Host "Active Directory module loaded successfully." -ForegroundColor Green
+    Write-Information "Active Directory module loaded successfully." -InformationAction Continue
 }
 catch {
     Write-Error "Failed to load Active Directory module. Please ensure RSAT AD tools are installed."
     exit 1
 }
 
-# Construct full output path
 $OutputFilePath = Join-Path -Path $OutputPath -ChildPath $FileName
 
-# Build filter based on parameters
 $Filter = "samAccountName -like `"$UserFilter`""
 if (-not $IncludeDisabledUsers) {
     $Filter += " -and Enabled -eq `$true"
 }
 
-Write-Host "Starting user last logon report..." -ForegroundColor Cyan
-Write-Host "User filter: $UserFilter" -ForegroundColor Gray
-Write-Host "Include disabled users: $IncludeDisabledUsers" -ForegroundColor Gray
+Write-Information "Starting user last logon report..." -InformationAction Continue
+Write-Information "User filter: $UserFilter" -InformationAction Continue
+Write-Information "Include disabled users: $IncludeDisabledUsers" -InformationAction Continue
 
 try {
-    # Query user objects
     $Users = Get-ADUser -Filter $Filter `
                        -Properties Company, Created, LastLogon, MemberOf, Enabled `
                        -ErrorAction Stop |
@@ -107,15 +103,14 @@ try {
                           }}
 
     if ($Users.Count -gt 0) {
-        # Export to CSV
         $Users | Export-Csv -Encoding UTF8 -Path $OutputFilePath -NoTypeInformation
         
-        Write-Host "Export completed successfully!" -ForegroundColor Green
-        Write-Host "Found $($Users.Count) users matching criteria" -ForegroundColor Yellow
-        Write-Host "Report saved to: $OutputFilePath" -ForegroundColor White
+        Write-Information "Export completed successfully!" -InformationAction Continue
+        Write-Information "Found $($Users.Count) users matching criteria" -InformationAction Continue
+        Write-Information "Report saved to: $OutputFilePath" -InformationAction Continue
     }
     else {
-        Write-Host "No users found matching the specified criteria." -ForegroundColor Yellow
+        Write-Information "No users found matching the specified criteria." -InformationAction Continue
     }
 }
 catch {
@@ -123,4 +118,9 @@ catch {
     exit 1
 }
 
-Write-Host "Script execution completed." -ForegroundColor Cyan
+Write-Information "Script execution completed." -InformationAction Continue
+
+
+
+
+

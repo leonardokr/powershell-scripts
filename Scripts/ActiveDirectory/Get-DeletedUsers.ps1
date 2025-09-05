@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Exports deleted Active Directory users within a specified date range.
 
@@ -50,24 +50,21 @@ param (
     [string]$FileName = "DeletedUsers_$(Get-Date -Format 'yyyyMMdd').csv"
 )
 
-# Import required module
 try {
     Import-Module ActiveDirectory -ErrorAction Stop
-    Write-Host "Active Directory module loaded successfully." -ForegroundColor Green
+    Write-Information "Active Directory module loaded successfully." -InformationAction Continue
 }
 catch {
     Write-Error "Failed to load Active Directory module. Please ensure RSAT AD tools are installed."
     exit 1
 }
 
-# Construct full output path
 $OutputFilePath = Join-Path -Path $OutputPath -ChildPath $FileName
 
-Write-Host "Starting deleted users export..." -ForegroundColor Cyan
-Write-Host "Search criteria: Users deleted after $($DeletedAfter.ToString('yyyy-MM-dd'))" -ForegroundColor Gray
+Write-Information "Starting deleted users export..." -InformationAction Continue
+Write-Information "Search criteria: Users deleted after $($DeletedAfter.ToString('yyyy-MM-dd'))" -InformationAction Continue
 
 try {
-    # Query deleted user objects
     $DeletedUsers = Get-ADObject -Filter "isdeleted -eq `$TRUE -and whenChanged -gt `$DeletedAfter -and ObjectClass -eq 'user'" `
                                  -IncludeDeletedObjects `
                                  -Properties displayName, userPrincipalName, Company, whenChanged, samAccountName `
@@ -81,15 +78,14 @@ try {
                                   @{Name="SamAccountName"; Expression={$_.samAccountName}}
 
     if ($DeletedUsers.Count -gt 0) {
-        # Export to CSV
         $DeletedUsers | Export-Csv -Encoding UTF8 -Path $OutputFilePath -NoTypeInformation
         
-        Write-Host "Export completed successfully!" -ForegroundColor Green
-        Write-Host "Found $($DeletedUsers.Count) deleted users" -ForegroundColor Yellow
-        Write-Host "Report saved to: $OutputFilePath" -ForegroundColor White
+        Write-Information "Export completed successfully!" -InformationAction Continue
+        Write-Information "Found $($DeletedUsers.Count) deleted users" -InformationAction Continue
+        Write-Information "Report saved to: $OutputFilePath" -InformationAction Continue
     }
     else {
-        Write-Host "No deleted users found for the specified criteria." -ForegroundColor Yellow
+        Write-Information "No deleted users found for the specified criteria." -InformationAction Continue
     }
 }
 catch {
@@ -97,4 +93,9 @@ catch {
     exit 1
 }
 
-Write-Host "Script execution completed." -ForegroundColor Cyan
+Write-Information "Script execution completed." -InformationAction Continue
+
+
+
+
+
