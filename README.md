@@ -9,6 +9,8 @@ Scripts/
 ├── ActiveDirectory/     # Active Directory user and object management
 ├── FileSystem/         # File system permissions and auditing
 ├── NetworkShares/      # SMB shares and DFS namespace management
+├── Registry/           # Windows Registry configuration and optimization
+├── System/             # System-level configuration and debugging
 ├── TaskScheduler/      # Scheduled task deployment and management
 └── UserProfiles/       # Windows user profile cleanup and maintenance
 ```
@@ -24,6 +26,12 @@ Scripts/
 
 ### Network Shares
 - **New-ShareAndDFS.ps1** - Creates SMB shares and corresponding DFS namespaces
+
+### Registry
+- **Disable-LanmanCache.ps1** - Disables LanmanWorkstation cache for network performance
+
+### System
+- **Enable-FullDump.ps1** - Configures Windows Error Reporting for full memory dumps
 
 ### Task Scheduler
 - **Deploy-ScheduledTasks.ps1** - Deploys scheduled tasks to multiple servers
