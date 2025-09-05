@@ -70,18 +70,12 @@ param (
     [string]$TargetDirectory = "C:\Scripts",
     
     [Parameter(Mandatory = $false)]
-    [switch]$ExecuteAfterRegister,
-    
-    [Parameter(Mandatory = $false)]
-    [string]$LogPath = "C:\Logs",
-    
-    [Parameter(Mandatory = $false)]
-    [switch]$EnableDebugMode
+    [switch]$ExecuteAfterRegister
 )
 
 $ErrorActionPreference = 'Stop'
 
-function Write-Log {
+function Write-ScriptLog {
     param(
         [string]$Message,
         [ValidateSet('Info', 'Warning', 'Error', 'Debug')]
@@ -95,7 +89,7 @@ function Write-Log {
         'Info' { Write-Information $logMessage -InformationAction Continue }
         'Warning' { Write-Warning $logMessage }
         'Error' { Write-Error $logMessage }
-        'Debug' { if ($EnableDebugMode) { Write-Verbose $logMessage } }
+        'Debug' { Write-Verbose $logMessage }
     }
 }
 
@@ -107,12 +101,13 @@ function Copy-FilesToServer {
         [string]$TargetDir
     )
     
-    Write-Log "Starting file deployment to $ServerName" 'Info'
+    Write-ScriptLog "Starting file deployment to $ServerName" 'Info'
     
     try {
         $session = New-PSSession -ComputerName $ServerName -ErrorAction Stop
         
         if ($PSCmdlet.ShouldProcess($ServerName, "Create directory $TargetDir")) {
+            # PSScriptAnalyzer incorrectly flags this as needing Using: scope, but -ArgumentList is the proper method
             Invoke-Command -Session $session -ScriptBlock {
                 param($Dir)
                 if (-not (Test-Path $Dir)) {
@@ -129,19 +124,19 @@ function Copy-FilesToServer {
                 
                 if ($PSCmdlet.ShouldProcess($file, "Copy to $ServerName")) {
                     Copy-Item -Path $file -Destination $remotePath -ToSession $session -Force
-                    Write-Log "Copied $fileName to $ServerName" 'Info'
+                    Write-ScriptLog "Copied $fileName to $ServerName" 'Info'
                 }
             }
             else {
-                Write-Log "File not found: $file" 'Warning'
+                Write-ScriptLog "File not found: $file" 'Warning'
             }
         }
         
         Remove-PSSession $session
-        Write-Log "File deployment to $ServerName completed successfully" 'Info'
+        Write-ScriptLog "File deployment to $ServerName completed successfully" 'Info'
     }
     catch {
-        Write-Log "Failed to deploy files to $ServerName - $($_.Exception.Message)" 'Error'
+        Write-ScriptLog "Failed to deploy files to $ServerName - $($_.Exception.Message)" 'Error'
         if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
         throw
     }
@@ -156,11 +151,12 @@ function Register-ScheduledTaskOnServer {
         [bool]$ExecuteAfter
     )
     
-    Write-Log "Registering scheduled task '$TaskName' on $ServerName" 'Info'
+    Write-ScriptLog "Registering scheduled task '$TaskName' on $ServerName" 'Info'
     
     try {
         $session = New-PSSession -ComputerName $ServerName -ErrorAction Stop
         
+        # PSScriptAnalyzer incorrectly flags this as needing Using: scope, but -ArgumentList is the proper method
         $result = Invoke-Command -Session $session -ScriptBlock {
             param($TaskName, $TargetDir, $ExecuteAfter)
             
@@ -189,27 +185,27 @@ function Register-ScheduledTaskOnServer {
         Remove-PSSession $session
         
         if ($result.Success) {
-            Write-Log $result.Message 'Info'
+            Write-ScriptLog $result.Message 'Info'
         }
         else {
-            Write-Log "Failed to register task on $ServerName - $($result.Message)" 'Error'
+            Write-ScriptLog "Failed to register task on $ServerName - $($result.Message)" 'Error'
         }
         
         return $result.Success
     }
     catch {
-        Write-Log "Failed to register task on $ServerName - $($_.Exception.Message)" 'Error'
+        Write-ScriptLog "Failed to register task on $ServerName - $($_.Exception.Message)" 'Error'
         if ($session) { Remove-PSSession $session -ErrorAction SilentlyContinue }
         return $false
     }
 }
 
 try {
-    Write-Log "Starting scheduled task deployment process" 'Info'
-    Write-Log "Task Name: $TaskName" 'Debug'
-    Write-Log "Target Servers: $($ServerList -join ', ')" 'Debug'
-    Write-Log "Files to Copy: $($FilesToCopy -join ', ')" 'Debug'
-    Write-Log "Target Directory: $TargetDirectory" 'Debug'
+    Write-ScriptLog "Starting scheduled task deployment process" 'Info'
+    Write-ScriptLog "Task Name: $TaskName" 'Debug'
+    Write-ScriptLog "Target Servers: $($ServerList -join ', ')" 'Debug'
+    Write-ScriptLog "Files to Copy: $($FilesToCopy -join ', ')" 'Debug'
+    Write-ScriptLog "Target Directory: $TargetDirectory" 'Debug'
     
     $missingFiles = $FilesToCopy | Where-Object { -not (Test-Path $_) }
     if ($missingFiles) {
@@ -226,7 +222,7 @@ try {
     $results = @()
     
     foreach ($server in $ServerList) {
-        Write-Log "Processing server: $server" 'Info'
+        Write-ScriptLog "Processing server: $server" 'Info'
         
         try {
             if (-not (Test-NetConnection -ComputerName $server -Port 5985 -InformationLevel Quiet)) {
@@ -257,7 +253,7 @@ try {
         catch {
             $failureCount++
             $errorMessage = $_.Exception.Message
-            Write-Log "Server $server failed: $errorMessage" 'Error'
+            Write-ScriptLog "Server $server failed: $errorMessage" 'Error'
             
             $results += [PSCustomObject]@{
                 Server  = $server
@@ -267,9 +263,9 @@ try {
         }
     }
     
-    Write-Log "Deployment completed" 'Info'
-    Write-Log "Success: $successCount servers" 'Info'
-    Write-Log "Failed: $failureCount servers" 'Info'
+    Write-ScriptLog "Deployment completed" 'Info'
+    Write-ScriptLog "Success: $successCount servers" 'Info'
+    Write-ScriptLog "Failed: $failureCount servers" 'Info'
     
     Write-Output $results
     
@@ -279,6 +275,6 @@ try {
     }
 }
 catch {
-    Write-Log "Deployment process failed: $($_.Exception.Message)" 'Error'
+    Write-ScriptLog "Deployment process failed: $($_.Exception.Message)" 'Error'
     exit 1
 }

@@ -57,20 +57,14 @@ param (
     [string]$DomainNamespace = "\\domain.local",
     
     [Parameter(Mandatory = $false)]
-    [string]$ServerName = $env:COMPUTERNAME,
-    
-    [Parameter(Mandatory = $false)]
-    [string]$LogPath = "C:\Logs",
-    
-    [Parameter(Mandatory = $false)]
-    [switch]$EnableDebugMode
+    [string]$ServerName = $env:COMPUTERNAME
 )
 
 # Error handling
 $ErrorActionPreference = 'Stop'
 
 # Logging function
-function Write-Log {
+function Write-ScriptLog {
     param(
         [string]$Message,
         [ValidateSet('Info', 'Warning', 'Error', 'Debug')]
@@ -96,23 +90,23 @@ function New-SMBShareSafe {
         [string]$Description = ""
     )
     
-    Write-Log "Creating SMB share: $Name" 'Debug'
+    Write-ScriptLog "Creating SMB share: $Name" 'Debug'
     
     try {
         $existingShare = Get-SmbShare -Name $Name -ErrorAction SilentlyContinue
         if ($existingShare) {
-            Write-Log "SMB share '$Name' already exists" 'Warning'
+            Write-ScriptLog "SMB share '$Name' already exists" 'Warning'
             return $true
         }
         
         if ($PSCmdlet.ShouldProcess($Name, "Create SMB share")) {
             New-SmbShare -Name $Name -Path $Path -Description $Description -FullAccess "Everyone"
-            Write-Log "SMB share '$Name' created successfully" 'Info'
+            Write-ScriptLog "SMB share '$Name' created successfully" 'Info'
             return $true
         }
     }
     catch {
-        Write-Log "Failed to create SMB share '$Name': $($_.Exception.Message)" 'Error'
+        Write-ScriptLog "Failed to create SMB share '$Name': $($_.Exception.Message)" 'Error'
         return $false
     }
 }
@@ -125,34 +119,34 @@ function New-DFSNamespaceSafe {
         [string]$NamespacePath
     )
     
-    Write-Log "Creating DFS namespace: $Name" 'Debug'
+    Write-ScriptLog "Creating DFS namespace: $Name" 'Debug'
     
     try {
         $dfsPath = "$NamespacePath\$Name"
         $existingLink = Get-DfsnFolderTarget -Path $dfsPath -ErrorAction SilentlyContinue
         if ($existingLink) {
-            Write-Log "DFS link '$dfsPath' already exists" 'Warning'
+            Write-ScriptLog "DFS link '$dfsPath' already exists" 'Warning'
             return $true
         }
         
         if ($PSCmdlet.ShouldProcess($dfsPath, "Create DFS namespace link")) {
             New-DfsnFolder -Path $dfsPath -TargetPath $TargetPath
-            Write-Log "DFS namespace '$dfsPath' created successfully" 'Info'
+            Write-ScriptLog "DFS namespace '$dfsPath' created successfully" 'Info'
             return $true
         }
     }
     catch {
-        Write-Log "Failed to create DFS namespace '$Name': $($_.Exception.Message)" 'Error'
+        Write-ScriptLog "Failed to create DFS namespace '$Name': $($_.Exception.Message)" 'Error'
         return $false
     }
 }
 
 # Main execution
 try {
-    Write-Log "Starting SMB share and DFS namespace creation process" 'Info'
-    Write-Log "Base Path: $BasePath" 'Debug'
-    Write-Log "Domain Namespace: $DomainNamespace" 'Debug'
-    Write-Log "Server Name: $ServerName" 'Debug'
+    Write-ScriptLog "Starting SMB share and DFS namespace creation process" 'Info'
+    Write-ScriptLog "Base Path: $BasePath" 'Debug'
+    Write-ScriptLog "Domain Namespace: $DomainNamespace" 'Debug'
+    Write-ScriptLog "Server Name: $ServerName" 'Debug'
     
     # Verify prerequisites
     if (-not (Get-Module -ListAvailable -Name DFSN)) {
@@ -171,11 +165,11 @@ try {
     $folders = Get-ChildItem -Path $BasePath -Directory -ErrorAction Stop
     
     if ($folders.Count -eq 0) {
-        Write-Log "No folders found in $BasePath" 'Warning'
+        Write-ScriptLog "No folders found in $BasePath" 'Warning'
         return
     }
     
-    Write-Log "Found $($folders.Count) folders to process" 'Info'
+    Write-ScriptLog "Found $($folders.Count) folders to process" 'Info'
     
     $successCount = 0
     $failureCount = 0
@@ -188,7 +182,7 @@ try {
         $shareName = $folderName
         $shareTargetPath = "\\$ServerName\$shareName"
         
-        Write-Log "Processing folder: $folderName" 'Info'
+        Write-ScriptLog "Processing folder: $folderName" 'Info'
         
         try {
             # Create SMB share
@@ -212,7 +206,7 @@ try {
             $failureCount++
             $status = 'Failed'
             $message = $_.Exception.Message
-            Write-Log "Failed to process folder '$folderName': $message" 'Error'
+            Write-ScriptLog "Failed to process folder '$folderName': $message" 'Error'
         }
         
         $results += [PSCustomObject]@{
@@ -225,9 +219,9 @@ try {
     }
     
     # Summary
-    Write-Log "Processing completed" 'Info'
-    Write-Log "Successful: $successCount folders" 'Info'
-    Write-Log "Failed: $failureCount folders" 'Info'
+    Write-ScriptLog "Processing completed" 'Info'
+    Write-ScriptLog "Successful: $successCount folders" 'Info'
+    Write-ScriptLog "Failed: $failureCount folders" 'Info'
     
     # Output results
     Write-Output $results
@@ -238,6 +232,6 @@ try {
     }
 }
 catch {
-    Write-Log "Process failed: $($_.Exception.Message)" 'Error'
+    Write-ScriptLog "Process failed: $($_.Exception.Message)" 'Error'
     exit 1
 }

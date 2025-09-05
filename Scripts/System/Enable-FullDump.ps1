@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Enables full memory dump collection for Windows Error Reporting.
 
