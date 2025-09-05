@@ -95,6 +95,7 @@ function Write-ScriptLog {
 
 function Copy-FilesToServer {
     [CmdletBinding(SupportsShouldProcess)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseUsingScopeModifierInNewRunspaces', '', Justification = 'Using ArgumentList parameter for compatibility')]
     param(
         [string]$ServerName,
         [string[]]$Files,
@@ -144,6 +145,7 @@ function Copy-FilesToServer {
 
 function Register-ScheduledTaskOnServer {
     [CmdletBinding(SupportsShouldProcess)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseUsingScopeModifierInNewRunspaces', '', Justification = 'Using ArgumentList parameter for compatibility')]
     param(
         [string]$ServerName,
         [string]$TaskName,
