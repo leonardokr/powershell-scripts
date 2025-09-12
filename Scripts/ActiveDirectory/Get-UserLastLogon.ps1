@@ -48,7 +48,7 @@ param (
     [string]$UserFilter = "*",
     
     [Parameter(Mandatory = $false)]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$OutputPath = $PWD.Path,
     
     [Parameter(Mandatory = $false)]
@@ -80,27 +80,31 @@ Write-Information "Include disabled users: $IncludeDisabledUsers" -InformationAc
 
 try {
     $Users = Get-ADUser -Filter $Filter `
-                       -Properties Company, Created, LastLogon, MemberOf, Enabled `
-                       -ErrorAction Stop |
-             Select-Object @{Name="SamAccountName"; Expression={$_.samAccountName}},
-                          @{Name="Name"; Expression={$_.Name}},
-                          @{Name="Company"; Expression={$_.Company}},
-                          @{Name="Created"; Expression={Get-Date $_.Created -Format "yyyy-MM-dd"}},
-                          @{Name="LastLogon"; Expression={
-                              if ($_.LastLogon -and $_.LastLogon -gt 0) {
-                                  [DateTime]::FromFileTime($_.LastLogon).ToString("yyyy-MM-dd HH:mm:ss")
-                              } else {
-                                  "Never"
-                              }
-                          }},
-                          @{Name="Enabled"; Expression={$_.Enabled}},
-                          @{Name="GroupMemberships"; Expression={
-                              if ($_.MemberOf) {
-                                  ($_.MemberOf -replace '^CN=|,(OU|CN).+') -join ";"
-                              } else {
-                                  "None"
-                              }
-                          }}
+        -Properties Company, Created, LastLogon, MemberOf, Enabled `
+        -ErrorAction Stop |
+    Select-Object @{Name = "SamAccountName"; Expression = { $_.samAccountName } },
+    @{Name = "Name"; Expression = { $_.Name } },
+    @{Name = "Company"; Expression = { $_.Company } },
+    @{Name = "Created"; Expression = { Get-Date $_.Created -Format "yyyy-MM-dd" } },
+    @{Name = "LastLogon"; Expression = {
+            if ($_.LastLogon -and $_.LastLogon -gt 0) {
+                [DateTime]::FromFileTime($_.LastLogon).ToString("yyyy-MM-dd HH:mm:ss")
+            }
+            else {
+                "Never"
+            }
+        }
+    },
+    @{Name = "Enabled"; Expression = { $_.Enabled } },
+    @{Name = "GroupMemberships"; Expression = {
+            if ($_.MemberOf) {
+                ($_.MemberOf -replace '^CN=|,(OU|CN).+') -join ";"
+            }
+            else {
+                "None"
+            }
+        }
+    }
 
     if ($Users.Count -gt 0) {
         $Users | Export-Csv -Encoding UTF8 -Path $OutputFilePath -NoTypeInformation

@@ -43,7 +43,7 @@ param (
     [DateTime]$DeletedAfter = (Get-Date).AddMonths(-3),
     
     [Parameter(Mandatory = $false)]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$OutputPath = $PWD.Path,
     
     [Parameter(Mandatory = $false)]
@@ -66,16 +66,16 @@ Write-Information "Search criteria: Users deleted after $($DeletedAfter.ToString
 
 try {
     $DeletedUsers = Get-ADObject -Filter "isdeleted -eq `$TRUE -and whenChanged -gt `$DeletedAfter -and ObjectClass -eq 'user'" `
-                                 -IncludeDeletedObjects `
-                                 -Properties displayName, userPrincipalName, Company, whenChanged, samAccountName `
-                                 -ErrorAction Stop |
-                    Where-Object { $_.userPrincipalName -ne $null } |
-                    Sort-Object whenChanged |
-                    Select-Object @{Name="DisplayName"; Expression={$_.displayName}},
-                                  @{Name="UserPrincipalName"; Expression={$_.userPrincipalName}},
-                                  @{Name="Company"; Expression={$_.Company}},
-                                  @{Name="DeletionDate"; Expression={Get-Date $_.whenChanged -Format "yyyy-MM-dd"}},
-                                  @{Name="SamAccountName"; Expression={$_.samAccountName}}
+        -IncludeDeletedObjects `
+        -Properties displayName, userPrincipalName, Company, whenChanged, samAccountName `
+        -ErrorAction Stop |
+    Where-Object { $_.userPrincipalName -ne $null } |
+    Sort-Object whenChanged |
+    Select-Object @{Name = "DisplayName"; Expression = { $_.displayName } },
+    @{Name = "UserPrincipalName"; Expression = { $_.userPrincipalName } },
+    @{Name = "Company"; Expression = { $_.Company } },
+    @{Name = "DeletionDate"; Expression = { Get-Date $_.whenChanged -Format "yyyy-MM-dd" } },
+    @{Name = "SamAccountName"; Expression = { $_.samAccountName } }
 
     if ($DeletedUsers.Count -gt 0) {
         $DeletedUsers | Export-Csv -Encoding UTF8 -Path $OutputFilePath -NoTypeInformation

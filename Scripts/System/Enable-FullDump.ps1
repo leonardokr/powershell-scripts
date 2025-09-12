@@ -93,18 +93,18 @@ try {
     
     $dumpSettings = @{
         "DumpFolder" = @{
-            Value = $resolvedDumpFolder
-            Type = "ExpandString"
+            Value       = $resolvedDumpFolder
+            Type        = "ExpandString"
             Description = "Crash dump storage location"
         }
-        "DumpType" = @{
-            Value = 2  # 2 = Full dump
-            Type = "DWord"
+        "DumpType"   = @{
+            Value       = 2  # 2 = Full dump
+            Type        = "DWord"
             Description = "Dump type (2 = Full dump)"
         }
-        "DumpCount" = @{
-            Value = $DumpCount
-            Type = "DWord"
+        "DumpCount"  = @{
+            Value       = $DumpCount
+            Type        = "DWord"
             Description = "Maximum number of dump files to retain"
         }
     }

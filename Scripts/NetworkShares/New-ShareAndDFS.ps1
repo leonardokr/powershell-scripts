@@ -35,7 +35,7 @@
     File Name      : New-ShareAndDFS.ps1
     Author         : Leonardo Klein Rezende
     Prerequisite   : DFSN PowerShell module, Administrative privileges
-    Creation Date  : 2025-09-05
+    Creation Date  : 2025-08-10
     
     Requires:
     - Administrative privileges
@@ -50,7 +50,7 @@
 [CmdletBinding(SupportsShouldProcess)]
 param (
     [Parameter(Mandatory = $false)]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$BasePath = "D:\",
     
     [Parameter(Mandatory = $false)]
@@ -60,10 +60,9 @@ param (
     [string]$ServerName = $env:COMPUTERNAME
 )
 
-# Error handling
+
 $ErrorActionPreference = 'Stop'
 
-# Logging function
 function Write-ScriptLog {
     param(
         [string]$Message,
@@ -141,14 +140,12 @@ function New-DFSNamespaceSafe {
     }
 }
 
-# Main execution
 try {
     Write-ScriptLog "Starting SMB share and DFS namespace creation process" 'Info'
     Write-ScriptLog "Base Path: $BasePath" 'Debug'
     Write-ScriptLog "Domain Namespace: $DomainNamespace" 'Debug'
     Write-ScriptLog "Server Name: $ServerName" 'Debug'
     
-    # Verify prerequisites
     if (-not (Get-Module -ListAvailable -Name DFSN)) {
         throw "DFS Management PowerShell module is not available. Please install DFS Management features."
     }
@@ -157,11 +154,9 @@ try {
         throw "SMB Share PowerShell module is not available."
     }
     
-    # Import required modules
     Import-Module DFSN -ErrorAction Stop
     Import-Module SmbShare -ErrorAction Stop
     
-    # Get all subdirectories
     $folders = Get-ChildItem -Path $BasePath -Directory -ErrorAction Stop
     
     if ($folders.Count -eq 0) {
@@ -175,7 +170,6 @@ try {
     $failureCount = 0
     $results = @()
     
-    # Process each folder
     foreach ($folder in $folders) {
         $folderName = $folder.Name
         $folderPath = $folder.FullName
@@ -185,10 +179,7 @@ try {
         Write-ScriptLog "Processing folder: $folderName" 'Info'
         
         try {
-            # Create SMB share
             $shareResult = New-SMBShareSafe -Name $shareName -Path $folderPath -Description "Automated share for $folderName"
-            
-            # Create DFS namespace link
             $dfsResult = New-DFSNamespaceSafe -Name $folderName -TargetPath $shareTargetPath -NamespacePath $DomainNamespace
             
             if ($shareResult -and $dfsResult) {
@@ -211,19 +202,17 @@ try {
         
         $results += [PSCustomObject]@{
             FolderName = $folderName
-            ShareName = $shareName
+            ShareName  = $shareName
             FolderPath = $folderPath
-            Status = $status
-            Message = $message
+            Status     = $status
+            Message    = $message
         }
     }
     
-    # Summary
     Write-ScriptLog "Processing completed" 'Info'
     Write-ScriptLog "Successful: $successCount folders" 'Info'
     Write-ScriptLog "Failed: $failureCount folders" 'Info'
     
-    # Output results
     Write-Output $results
     
     if ($failureCount -gt 0) {

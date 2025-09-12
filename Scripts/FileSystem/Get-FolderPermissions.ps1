@@ -53,7 +53,7 @@ param (
     [string]$BasePath = "d$\",
     
     [Parameter(Mandatory = $false)]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$OutputPath = $PWD.Path,
     
     [Parameter(Mandatory = $false)]
@@ -76,8 +76,8 @@ $TotalServers = $ServerList.Count
 foreach ($Server in $ServerList) {
     $ProcessedServers++
     Write-Progress -Activity "Auditing Folder Permissions" `
-                   -Status "Processing server $Server ($ProcessedServers of $TotalServers)" `
-                   -PercentComplete (($ProcessedServers / $TotalServers) * 100)
+        -Status "Processing server $Server ($ProcessedServers of $TotalServers)" `
+        -PercentComplete (($ProcessedServers / $TotalServers) * 100)
     
     Write-Information "Processing server: $Server" -InformationAction Continue
     
@@ -90,10 +90,10 @@ foreach ($Server in $ServerList) {
         $UNCPath = "\\$Server\$BasePath"
         
         $GetChildItemParams = @{
-            Path = $UNCPath
-            Directory = $true
-            Recurse = $true
-            Force = $true
+            Path        = $UNCPath
+            Directory   = $true
+            Recurse     = $true
+            Force       = $true
             ErrorAction = 'SilentlyContinue'
         }
         
@@ -109,13 +109,13 @@ foreach ($Server in $ServerList) {
                 
                 foreach ($Access in $ACL.Access) {
                     $Properties = [ordered]@{
-                        'Server' = $Server
-                        'FolderPath' = $Folder.FullName
-                        'Identity' = $Access.IdentityReference
-                        'Permissions' = $Access.FileSystemRights
+                        'Server'            = $Server
+                        'FolderPath'        = $Folder.FullName
+                        'Identity'          = $Access.IdentityReference
+                        'Permissions'       = $Access.FileSystemRights
                         'AccessControlType' = $Access.AccessControlType
-                        'Inherited' = $Access.IsInherited
-                        'ScanDate' = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                        'Inherited'         = $Access.IsInherited
+                        'ScanDate'          = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
                     }
                     $Report += New-Object -TypeName PSObject -Property $Properties
                 }
