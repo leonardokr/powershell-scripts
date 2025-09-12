@@ -62,7 +62,7 @@ param (
     [string]$LogPath = "C:\Logs",
     
     [Parameter(Mandatory = $false)]
-    [ValidateScript({Test-Path $_ -PathType Container})]
+    [ValidateScript({ Test-Path $_ -PathType Container })]
     [string]$OutputPath = $PWD.Path
 )
 
@@ -81,7 +81,7 @@ $ReportFile = Join-Path -Path $OutputPath -ChildName "OrphanedProfiles_$(Get-Dat
 Start-Transcript -Path $LogFile
 
 Write-Information "Starting orphaned profile cleanup..." -InformationAction Continue
-$mode = if($RemoveProfiles){'REMOVAL'}else{'REPORT ONLY'}
+$mode = if ($RemoveProfiles) { 'REMOVAL' }else { 'REPORT ONLY' }
 Write-Information "Mode: $mode" -InformationAction Continue
 Write-Information "Report will be saved to: $ReportFile" -InformationAction Continue
 
@@ -103,7 +103,7 @@ $RemovedCount = 0
 
 try {
     $ProfileEntries = Get-ChildItem -Path $ProfileListPath -ErrorAction Stop | 
-                     Where-Object { $_.PSChildName -notin $ExcludedSIDs }
+    Where-Object { $_.PSChildName -notin $ExcludedSIDs }
     
     $TotalProfiles = $ProfileEntries.Count
     Write-Information "Found $TotalProfiles user profiles to check (excluding system accounts)." -InformationAction Continue
@@ -113,15 +113,15 @@ try {
         $ProfileSID = $ProfileEntry.PSChildName
         
         Write-Progress -Activity "Checking User Profiles" `
-                       -Status "Processing SID: $ProfileSID ($ProcessedProfiles of $TotalProfiles)" `
-                       -PercentComplete (($ProcessedProfiles / $TotalProfiles) * 100)
+            -Status "Processing SID: $ProfileSID ($ProcessedProfiles of $TotalProfiles)" `
+            -PercentComplete (($ProcessedProfiles / $TotalProfiles) * 100)
         
         try {
             $ProfilePath = Get-ItemPropertyValue -Path $ProfileEntry.PSPath -Name "ProfileImagePath" -ErrorAction Stop
             
-                        $IsBackupProfile = $ProfileSID -like "*.bak"
+            $IsBackupProfile = $ProfileSID -like "*.bak"
             
-                        $FolderExists = Test-Path -Path $ProfilePath
+            $FolderExists = Test-Path -Path $ProfilePath
             
             if ($IsBackupProfile -or -not $FolderExists) {
                 $OrphanedCount++
@@ -136,14 +136,14 @@ try {
                 }
                 
                 $ProfileInfo = [PSCustomObject]@{
-                    SID = $ProfileSID
-                    ProfilePath = $ProfilePath
-                    FolderExists = $FolderExists
+                    SID             = $ProfileSID
+                    ProfilePath     = $ProfilePath
+                    FolderExists    = $FolderExists
                     IsBackupProfile = $IsBackupProfile
-                    ProfileState = $ProfileState
-                    LastUseTime = $LastUseTime
-                    ScanDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                    Action = "None"
+                    ProfileState    = $ProfileState
+                    LastUseTime     = $LastUseTime
+                    ScanDate        = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                    Action          = "None"
                 }
                 
                 if ($RemoveProfiles) {
@@ -159,7 +159,8 @@ try {
                         $ProfileInfo.Action = "Failed to remove: $($_.Exception.Message)"
                         Write-Information "Failed to remove profile $ProfileSID`: $($_.Exception.Message)" -InformationAction Continue
                     }
-                } else {
+                }
+                else {
                     $ProfileInfo.Action = "Would be removed (report mode)"
                     Write-Information "Found orphaned profile: $ProfileSID -> $ProfilePath" -InformationAction Continue
                 }
@@ -188,7 +189,8 @@ try {
     if ($RemoveProfiles) {
         Write-Information "Profiles successfully removed: $RemovedCount" -InformationAction Continue
         Write-Information "Profiles failed to remove: $($OrphanedCount - $RemovedCount)" -InformationAction Continue
-    } else {
+    }
+    else {
         Write-Information "Run with -RemoveProfiles switch to actually remove orphaned profiles." -InformationAction Continue
     }
     
