@@ -30,11 +30,6 @@ settings.json
 .vscode/
 *.code-workspace
 
-# Personal/sensitive information
-*password*
-*credential*
-*secret*
-
 # Test outputs
 test-output/
 reports/
