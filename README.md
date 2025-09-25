@@ -6,7 +6,7 @@ A collection of PowerShell scripts for Windows system administration, Active Dir
 
 ```
 Scripts/
-├── ActiveDirectory/     # Active Directory user and object management
+├── ActiveDirectory/    # Active Directory user and object management
 ├── FileSystem/         # File system permissions and auditing
 ├── NetworkShares/      # SMB shares and DFS namespace management
 ├── Registry/           # Windows Registry configuration and optimization
@@ -20,6 +20,7 @@ Scripts/
 ### Active Directory
 - **Get-DeletedUsers.ps1** - Exports deleted AD users within a specified date range
 - **Get-UserLastLogon.ps1** - Reports user last logon times and group memberships
+- **Send-PasswordExpiryNotification** - Password expiration notification for AD users.
 
 ### File System
 - **Get-FolderPermissions.ps1** - Audits folder permissions across multiple servers
