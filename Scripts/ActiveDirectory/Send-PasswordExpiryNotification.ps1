@@ -1,4 +1,4 @@
-#Requires -Modules ActiveDirectory
+﻿#Requires -Modules ActiveDirectory
 
 <#
 .SYNOPSIS
@@ -118,14 +118,7 @@ function Write-LogMessage {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logEntry = "[$timestamp] [$Level] $Message"
     
-    $color = switch ($Level) {
-        "INFO" { "White" }
-        "SUCCESS" { "Green" }
-        "WARN" { "Yellow" }
-        "ERROR" { "Red" }
-    }
-    
-    Write-Host $logEntry -ForegroundColor $color
+    Write-Information $logEntry -InformationAction Continue
 }
 
 function Initialize-LogFile {
@@ -185,7 +178,7 @@ function Get-PasswordExpirationData {
     return $expirationData
 }
 
-function New-PasswordExpiryEmailBody {
+function Get-PasswordExpiryEmailBody {
     param(
         [string]$UserName,
         [int]$DaysToExpire
@@ -263,7 +256,7 @@ function Send-PasswordExpiryAlert {
     )
     
     try {
-        $emailBody = New-PasswordExpiryEmailBody -UserName $User.Name -DaysToExpire $ExpirationData.DaysToExpire
+        $emailBody = Get-PasswordExpiryEmailBody -UserName $User.Name -DaysToExpire $ExpirationData.DaysToExpire
         
         $mailParams = @{
             SmtpServer = $smtpServer
