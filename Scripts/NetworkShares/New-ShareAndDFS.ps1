@@ -53,7 +53,6 @@
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
-[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'EnableDebugMode', Justification = 'Used in Write-ScriptLog function scope')]
 param (
     [Parameter(Mandatory = $false)]
     [ValidateScript({ Test-Path $_ -PathType Container })]
