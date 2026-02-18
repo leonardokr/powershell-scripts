@@ -45,7 +45,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : PowerShell remoting, Administrative access to target servers
     Creation Date  : 2025-09-05
-    
+    Version        : 1.0.0
+
     Requires:
     - PowerShell remoting enabled on target servers
     - Administrative privileges on target servers
@@ -221,47 +222,47 @@ try {
     
     $successCount = 0
     $failureCount = 0
-    $results = @()
-    
+    $results = [System.Collections.Generic.List[PSObject]]::new()
+
     foreach ($server in $ServerList) {
         Write-ScriptLog "Processing server: $server" 'Info'
-        
+
         try {
             if (-not (Test-NetConnection -ComputerName $server -Port 5985 -InformationLevel Quiet)) {
                 throw "Cannot connect to $server on port 5985 (WinRM)"
             }
-            
+
             Copy-FilesToServer -ServerName $server -Files $FilesToCopy -TargetDir $TargetDirectory
-            
+
             $taskResult = Register-ScheduledTaskOnServer -ServerName $server -TaskName $TaskName -TargetDir $TargetDirectory -ExecuteAfter $ExecuteAfterRegister
-            
+
             if ($taskResult) {
                 $successCount++
-                $results += [PSCustomObject]@{
+                $results.Add([PSCustomObject]@{
                     Server  = $server
                     Status  = 'Success'
                     Message = 'Task deployed successfully'
-                }
+                })
             }
             else {
                 $failureCount++
-                $results += [PSCustomObject]@{
+                $results.Add([PSCustomObject]@{
                     Server  = $server
                     Status  = 'Failed'
                     Message = 'Task registration failed'
-                }
+                })
             }
         }
         catch {
             $failureCount++
             $errorMessage = $_.Exception.Message
             Write-ScriptLog "Server $server failed: $errorMessage" 'Error'
-            
-            $results += [PSCustomObject]@{
+
+            $results.Add([PSCustomObject]@{
                 Server  = $server
                 Status  = 'Failed'
                 Message = $errorMessage
-            }
+            })
         }
     }
     

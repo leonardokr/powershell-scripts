@@ -1,4 +1,6 @@
-﻿<#
+﻿#Requires -Modules ActiveDirectory
+
+<#
 .SYNOPSIS
     Exports deleted Active Directory users within a specified date range.
 
@@ -30,7 +32,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : Active Directory PowerShell module
     Creation Date  : 2025-09-04
-    
+    Version        : 1.0.0
+
     Requires Domain Admin or equivalent permissions to query deleted objects.
 
 .LINK
@@ -94,8 +97,4 @@ catch {
 }
 
 Write-Information "Script execution completed." -InformationAction Continue
-
-
-
-
 

@@ -1,5 +1,7 @@
 # PowerShell Scripts Collection
 
+[![PowerShell Script Validation](https://github.com/leonardokr/powershell-scripts/actions/workflows/validate.yml/badge.svg)](https://github.com/leonardokr/powershell-scripts/actions/workflows/validate.yml)
+
 A collection of PowerShell scripts for Windows system administration, Active Directory management, and IT automation tasks.
 
 ## 📁 Repository Structure
@@ -20,7 +22,7 @@ Scripts/
 ### Active Directory
 - **Get-DeletedUsers.ps1** - Exports deleted AD users within a specified date range
 - **Get-UserLastLogon.ps1** - Reports user last logon times and group memberships
-- **Send-PasswordExpiryNotification** - Password expiration notification for AD users.
+- **Send-PasswordExpiryNotification.ps1** - Password expiration notification for AD users
 
 ### File System
 - **Get-FolderPermissions.ps1** - Audits folder permissions across multiple servers
@@ -33,6 +35,7 @@ Scripts/
 
 ### System
 - **Enable-FullDump.ps1** - Configures Windows Error Reporting for full memory dumps
+- **Invoke-WindowsUpdateMaintenance.ps1** - Manages Windows Updates across servers during maintenance windows
 
 ### Task Scheduler
 - **Deploy-ScheduledTasks.ps1** - Deploys scheduled tasks to multiple servers

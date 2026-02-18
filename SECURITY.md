@@ -15,7 +15,7 @@ This project supports the following PowerShell versions:
 If you discover a security vulnerability in any of these scripts, please follow these steps:
 
 1. **Do not** create a public GitHub issue
-2. Send an email to the repository maintainer with:
+2. Send an email to the repository maintainer via [GitHub profile](https://github.com/leonardokr) with:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact

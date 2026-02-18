@@ -40,7 +40,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : Administrative privileges
     Creation Date  : 2025-09-04
-    
+    Version        : 1.0.0
+
     WARNING: This script modifies the Windows registry. Always test in a 
     non-production environment first and ensure you have a system backup.
     
@@ -50,7 +51,7 @@
     https://docs.microsoft.com/en-us/windows/win32/shell/user-profiles
 #>
 
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess)]
 param (
     [Parameter(Mandatory = $false)]
     [switch]$RemoveProfiles,
@@ -146,7 +147,7 @@ try {
                     Action          = "None"
                 }
                 
-                if ($RemoveProfiles) {
+                if ($RemoveProfiles -and $PSCmdlet.ShouldProcess($ProfileSID, "Remove orphaned profile registry entry")) {
                     try {
                         Write-Information "Removing orphaned profile: $ProfileSID" -InformationAction Continue
                         Remove-Item -Path $ProfileEntry.PSPath -Recurse -Force -ErrorAction Stop
@@ -207,8 +208,4 @@ Write-Information "`nLog saved to: $LogFile" -InformationAction Continue
 Write-Information "Script execution completed." -InformationAction Continue
 
 Stop-Transcript
-
-
-
-
 

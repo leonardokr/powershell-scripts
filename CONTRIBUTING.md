@@ -103,7 +103,8 @@ Organize scripts into appropriate categories:
 - **NetworkShares** - SMB shares and DFS management
 - **TaskScheduler** - Scheduled task management
 - **UserProfiles** - Windows user profile operations
-- **SystemMaintenance** - General system maintenance
+- **System** - System-level configuration and maintenance
+- **Registry** - Windows Registry configuration
 - **Monitoring** - System and service monitoring
 - **Security** - Security-related operations
 

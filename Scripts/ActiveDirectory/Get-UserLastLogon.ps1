@@ -1,4 +1,6 @@
-﻿<#
+﻿#Requires -Modules ActiveDirectory
+
+<#
 .SYNOPSIS
     Reports Active Directory user last logon times and group memberships.
 
@@ -34,7 +36,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : Active Directory PowerShell module
     Creation Date  : 2025-09-04
-    
+    Version        : 1.0.0
+
     LastLogon attribute may not be accurate in multi-DC environments.
     Consider using lastLogonTimestamp for more accurate results across DCs.
 
@@ -98,6 +101,7 @@ try {
     @{Name = "Enabled"; Expression = { $_.Enabled } },
     @{Name = "GroupMemberships"; Expression = {
             if ($_.MemberOf) {
+                # Extract group common names from DN format (e.g., "CN=GroupName,OU=Groups,DC=..." -> "GroupName")
                 ($_.MemberOf -replace '^CN=|,(OU|CN).+') -join ";"
             }
             else {
@@ -123,8 +127,4 @@ catch {
 }
 
 Write-Information "Script execution completed." -InformationAction Continue
-
-
-
-
 
