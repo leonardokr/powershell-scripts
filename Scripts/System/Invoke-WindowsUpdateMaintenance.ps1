@@ -48,6 +48,8 @@
     https://docs.microsoft.com/powershell/module/pswindowsupdate/
 #>
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseUsingScopeModifierInNewRunspaces', '',
+    Justification = 'Variables are passed via -ArgumentList and param() block in remote scriptblocks')]
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory = $true)]
@@ -292,7 +294,6 @@ function Invoke-ServerReboot {
     return $results
 }
 
-[System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseUsingScopeModifierInNewRunspaces', '')]
 function Invoke-FinalizeUpdate {
     param([string[]]$ServerNames, [string]$LogFilePath)
     
