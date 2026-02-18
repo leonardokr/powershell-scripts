@@ -60,8 +60,8 @@ Describe "Script Validation: <_.Name>" -ForEach $ScriptFiles {
         }
 
         It "Should not have trailing whitespace on lines" {
-            $lines = $ScriptContent -split "`n"
-            $trailingWhitespace = $lines | Where-Object { $_ -match '\S\s+$' }
+            $lines = $ScriptContent -split '\r?\n'
+            $trailingWhitespace = $lines | Where-Object { $_ -match '\S[ \t]+$' }
             $trailingWhitespace.Count | Should -Be 0
         }
 
