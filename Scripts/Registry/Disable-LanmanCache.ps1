@@ -103,7 +103,7 @@ try {
     Write-Information "LanmanWorkstation cache settings have been disabled successfully." -InformationAction Continue
     Write-Warning "IMPORTANT: A system restart may be required for changes to take effect."
     
-    if (-not $WhatIf) {
+    if (-not $WhatIfPreference) {
         $restart = Read-Host "`nWould you like to restart the computer now? (y/N)"
         if ($restart -eq 'y' -or $restart -eq 'Y') {
             Write-Information "Initiating system restart..." -InformationAction Continue

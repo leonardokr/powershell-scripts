@@ -57,24 +57,40 @@
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'EnableDebugMode', Justification = 'Used in Write-ScriptLog function scope')]
 param (
     [Parameter(Mandatory = $true)]
     [string]$TaskName,
-    
+
     [Parameter(Mandatory = $true)]
     [string[]]$ServerList,
-    
+
     [Parameter(Mandatory = $true)]
     [string[]]$FilesToCopy,
-    
+
     [Parameter(Mandatory = $false)]
     [string]$TargetDirectory = "C:\Scripts",
-    
+
     [Parameter(Mandatory = $false)]
-    [switch]$ExecuteAfterRegister
+    [switch]$ExecuteAfterRegister,
+
+    [Parameter(Mandatory = $false)]
+    [string]$LogPath = "C:\Logs",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$EnableDebugMode
 )
 
 $ErrorActionPreference = 'Stop'
+
+$script:LogFilePath = $null
+if ($LogPath) {
+    if (-not (Test-Path $LogPath)) {
+        New-Item -Path $LogPath -ItemType Directory -Force | Out-Null
+    }
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $script:LogFilePath = Join-Path $LogPath "Deploy-ScheduledTasks_${timestamp}.log"
+}
 
 function Write-ScriptLog {
     param(
@@ -82,15 +98,19 @@ function Write-ScriptLog {
         [ValidateSet('Info', 'Warning', 'Error', 'Debug')]
         [string]$Level = 'Info'
     )
-    
+
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] [$Level] $Message"
-    
+
     switch ($Level) {
         'Info' { Write-Information $logMessage -InformationAction Continue }
         'Warning' { Write-Warning $logMessage }
         'Error' { Write-Error $logMessage }
-        'Debug' { Write-Verbose $logMessage }
+        'Debug' { if ($EnableDebugMode) { Write-Verbose $logMessage } }
+    }
+
+    if ($script:LogFilePath) {
+        $logMessage | Out-File -FilePath $script:LogFilePath -Append -Encoding UTF8
     }
 }
 

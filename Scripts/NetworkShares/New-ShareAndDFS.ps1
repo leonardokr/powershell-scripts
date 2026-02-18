@@ -53,6 +53,7 @@
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'EnableDebugMode', Justification = 'Used in Write-ScriptLog function scope')]
 param (
     [Parameter(Mandatory = $false)]
     [ValidateScript({ Test-Path $_ -PathType Container })]
@@ -66,10 +67,23 @@ param (
 
     [Parameter(Mandatory = $false)]
     [string]$ShareAccess = "Everyone"
+    [string]$LogPath = "C:\Logs",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$EnableDebugMode
 )
 
 
 $ErrorActionPreference = 'Stop'
+
+$script:LogFilePath = $null
+if ($LogPath) {
+    if (-not (Test-Path $LogPath)) {
+        New-Item -Path $LogPath -ItemType Directory -Force | Out-Null
+    }
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $script:LogFilePath = Join-Path $LogPath "New-ShareAndDFS_${timestamp}.log"
+}
 
 function Write-ScriptLog {
     param(
@@ -77,15 +91,19 @@ function Write-ScriptLog {
         [ValidateSet('Info', 'Warning', 'Error', 'Debug')]
         [string]$Level = 'Info'
     )
-    
+
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] [$Level] $Message"
-    
+
     switch ($Level) {
         'Info' { Write-Information $logMessage -InformationAction Continue }
         'Warning' { Write-Warning $logMessage }
         'Error' { Write-Error $logMessage }
         'Debug' { if ($EnableDebugMode) { Write-Verbose $logMessage } }
+    }
+
+    if ($script:LogFilePath) {
+        $logMessage | Out-File -FilePath $script:LogFilePath -Append -Encoding UTF8
     }
 }
 
