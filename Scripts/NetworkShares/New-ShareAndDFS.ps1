@@ -54,6 +54,8 @@
 
 [System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'ShareAccess',
     Justification = 'Used in New-ShareFolder function scope')]
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'EnableDebugMode',
+    Justification = 'Used in Write-ScriptLog function scope')]
 [CmdletBinding(SupportsShouldProcess)]
 param (
     [Parameter(Mandatory = $false)]
