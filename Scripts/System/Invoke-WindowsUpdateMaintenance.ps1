@@ -37,7 +37,7 @@
 
 .NOTES
     File Name      : Invoke-WindowsUpdateMaintenance.ps1
-    Author         : IT Operations Team
+    Author         : Leonardo Klein Rezende
     Prerequisite   : Administrator privileges, PowerShell 5.1+, PSWindowsUpdate module
     Creation Date  : 2025-10-03
     
@@ -188,18 +188,16 @@ function Invoke-UpdateCheck {
             }
             
             $updates = Invoke-Command -ComputerName $server -ScriptBlock {
-                param($Timeout)
-                
                 Import-Module PSWindowsUpdate -ErrorAction Stop
-                
+
                 $updateList = Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot -Verbose:$false
-                
+
                 return @{
                     UpdateCount = $updateList.Count
                     Updates = $updateList | Select-Object Title, Size, Description
                     RequiresReboot = $updateList | Where-Object {$_.RebootRequired -eq $true}
                 }
-            } -ArgumentList $TimeoutMinutes -ErrorAction Stop
+            } -ErrorAction Stop
             
             $results[$server] = @{
                 Status = "Success"
@@ -465,7 +463,7 @@ try {
         
         "Recheck" {
             Write-MaintenanceLog "Starting recheck phase" -Level "INFO" -LogFilePath $logFilePath
-            $results = Invoke-UpdateCheck -ServerNames $connectivity.Available -LogFilePath $logFilePath -TimeoutMinutes $WSUSTimeoutMinutes -SkipSQLCheck $false
+            $results = Invoke-UpdateCheck -ServerNames $connectivity.Available -LogFilePath $logFilePath -TimeoutMinutes $WSUSTimeoutMinutes -SkipSQLCheck $SkipSQLServiceCheck.IsPresent
         }
         
         "Finalize" {
@@ -481,7 +479,9 @@ try {
 }
 catch {
     $errorMessage = "Critical error during $Stage stage: $($_.Exception.Message)"
-    Write-MaintenanceLog $errorMessage -Level "ERROR" -LogFilePath $logFilePath
+    if ($logFilePath) {
+        Write-MaintenanceLog $errorMessage -Level "ERROR" -LogFilePath $logFilePath
+    }
     Write-Error $errorMessage
     exit 1
 }
