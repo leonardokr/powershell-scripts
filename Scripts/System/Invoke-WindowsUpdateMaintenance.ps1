@@ -16,9 +16,6 @@
 .PARAMETER LogPath  
     Directory path for log files. Default: C:\Logs\WindowsUpdates
 
-.PARAMETER WSUSTimeoutMinutes
-    Timeout for Windows Update operations in minutes. Default: 30
-
 .PARAMETER RebootTimeoutMinutes
     Maximum wait time for server reboot completion. Default: 15
 
@@ -63,10 +60,6 @@ param(
     
     [Parameter(Mandatory = $false)]
     [string]$LogPath = "C:\Logs\WindowsUpdates",
-    
-    [Parameter(Mandatory = $false)]
-    [ValidateRange(5, 120)]
-    [int]$WSUSTimeoutMinutes = 30,
     
     [Parameter(Mandatory = $false)]
     [ValidateRange(5, 60)]
@@ -149,7 +142,7 @@ function Test-ServerConnectivity {
     }
 }
 
-function Get-SQLServerServices {
+function Get-SQLServerService {
     param([string]$ServerName, [string]$LogFilePath)
     
     try {
@@ -172,16 +165,16 @@ function Get-SQLServerServices {
 }
 
 function Invoke-UpdateCheck {
-    param([string[]]$ServerNames, [string]$LogFilePath, [int]$TimeoutMinutes, [bool]$SkipSQLCheck)
-    
+    param([string[]]$ServerNames, [string]$LogFilePath, [bool]$SkipSQLCheck)
+
     $results = @{}
-    
+
     foreach ($server in $ServerNames) {
         Write-MaintenanceLog "Starting update check" -Level "INFO" -LogFilePath $LogFilePath -ServerName $server
-        
+
         try {
             if (-not $SkipSQLCheck) {
-                $sqlServices = Get-SQLServerServices -ServerName $server -LogFilePath $LogFilePath
+                $sqlServices = Get-SQLServerService -ServerName $server -LogFilePath $LogFilePath
                 if ($sqlServices.Count -gt 0) {
                     Write-MaintenanceLog "SQL Server services detected - ensuring no automatic restarts during check" -Level "WARN" -LogFilePath $LogFilePath -ServerName $server
                 }
@@ -230,6 +223,7 @@ function Invoke-UpdateCheck {
 }
 
 function Invoke-ServerReboot {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string[]]$ServerNames, [string]$LogFilePath, [int]$TimeoutMinutes)
     
     $results = @{}
@@ -251,7 +245,7 @@ function Invoke-ServerReboot {
                 }
                 
                 $pendingReboot = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -ErrorAction SilentlyContinue
-                return ($pendingReboot -ne $null)
+                return ($null -ne $pendingReboot)
             } -ErrorAction Stop
             
             if ($rebootPending) {
@@ -298,7 +292,8 @@ function Invoke-ServerReboot {
     return $results
 }
 
-function Invoke-FinalizeUpdates {
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSUseUsingScopeModifierInNewRunspaces', '')]
+function Invoke-FinalizeUpdate {
     param([string[]]$ServerNames, [string]$LogFilePath)
     
     $results = @{}
@@ -307,7 +302,7 @@ function Invoke-FinalizeUpdates {
         Write-MaintenanceLog "Finalizing update installation" -Level "INFO" -LogFilePath $LogFilePath -ServerName $server
         
         try {
-            $sqlServices = Get-SQLServerServices -ServerName $server -LogFilePath $LogFilePath
+            $sqlServices = Get-SQLServerService -ServerName $server -LogFilePath $LogFilePath
             
             if ($sqlServices.Count -gt 0) {
                 Write-MaintenanceLog "Restarting SQL Server services" -Level "INFO" -LogFilePath $LogFilePath -ServerName $server
@@ -390,17 +385,17 @@ Execution Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
         
         switch ($Stage) {
             "Check" {
-                if ($result.UpdateCount -ne $null) {
+                if ($null -ne $result.UpdateCount) {
                     $summary += "  Updates Available: $($result.UpdateCount)`n"
                 }
             }
             "Reboot" {
-                if ($result.RebootCompleted -ne $null) {
+                if ($null -ne $result.RebootCompleted) {
                     $summary += "  Reboot Completed: $($result.RebootCompleted)`n"
                 }
             }
             "Finalize" {
-                if ($result.RemainingUpdates -ne $null -and $result.RemainingUpdates -ge 0) {
+                if ($null -ne $result.RemainingUpdates -and $result.RemainingUpdates -ge 0) {
                     $summary += "  Remaining Updates: $($result.RemainingUpdates)`n"
                 }
             }
@@ -453,7 +448,7 @@ try {
     switch ($Stage) {
         "Check" {
             Write-MaintenanceLog "Starting update check phase" -Level "INFO" -LogFilePath $logFilePath
-            $results = Invoke-UpdateCheck -ServerNames $connectivity.Available -LogFilePath $logFilePath -TimeoutMinutes $WSUSTimeoutMinutes -SkipSQLCheck $SkipSQLServiceCheck.IsPresent
+            $results = Invoke-UpdateCheck -ServerNames $connectivity.Available -LogFilePath $logFilePath -SkipSQLCheck $SkipSQLServiceCheck.IsPresent
         }
         
         "Reboot" {
@@ -463,12 +458,12 @@ try {
         
         "Recheck" {
             Write-MaintenanceLog "Starting recheck phase" -Level "INFO" -LogFilePath $logFilePath
-            $results = Invoke-UpdateCheck -ServerNames $connectivity.Available -LogFilePath $logFilePath -TimeoutMinutes $WSUSTimeoutMinutes -SkipSQLCheck $SkipSQLServiceCheck.IsPresent
+            $results = Invoke-UpdateCheck -ServerNames $connectivity.Available -LogFilePath $logFilePath -SkipSQLCheck $SkipSQLServiceCheck.IsPresent
         }
         
         "Finalize" {
             Write-MaintenanceLog "Starting finalization phase" -Level "INFO" -LogFilePath $logFilePath
-            $results = Invoke-FinalizeUpdates -ServerNames $connectivity.Available -LogFilePath $logFilePath
+            $results = Invoke-FinalizeUpdate -ServerNames $connectivity.Available -LogFilePath $logFilePath
         }
     }
     
