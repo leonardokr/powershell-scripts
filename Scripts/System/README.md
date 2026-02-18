@@ -4,6 +4,33 @@ This folder contains PowerShell scripts for managing Windows system settings and
 
 ## Scripts
 
+### Invoke-WindowsUpdateMaintenance.ps1
+Manages Windows Updates across multiple servers during scheduled maintenance windows with staged execution.
+
+**Purpose:**
+- Orchestrates Windows Updates installation across server infrastructure
+- Supports CSV-based server lists and SQL Server service management
+- Provides comprehensive logging for audit trails
+- Enables staged execution for maintenance windows
+
+**Requirements:**
+- Administrator privileges
+- PowerShell 5.1 or later
+- PSWindowsUpdate module
+- WinRM enabled on target servers
+
+**Usage:**
+```powershell
+# Check for updates
+.\Invoke-WindowsUpdateMaintenance.ps1 -ServerListPath "servers.csv" -Stage Check
+
+# Reboot servers after installation
+.\Invoke-WindowsUpdateMaintenance.ps1 -ServerListPath "servers.csv" -Stage Reboot
+
+# Final verification
+.\Invoke-WindowsUpdateMaintenance.ps1 -ServerListPath "servers.csv" -Stage Finalize
+```
+
 ### Enable-FullDump.ps1
 Configures Windows Error Reporting to create full memory dumps when applications crash.
 

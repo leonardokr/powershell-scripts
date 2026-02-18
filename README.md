@@ -33,6 +33,7 @@ Scripts/
 
 ### System
 - **Enable-FullDump.ps1** - Configures Windows Error Reporting for full memory dumps
+- **Invoke-WindowsUpdateMaintenance.ps1** - Manages Windows Updates across servers during maintenance windows
 
 ### Task Scheduler
 - **Deploy-ScheduledTasks.ps1** - Deploys scheduled tasks to multiple servers
