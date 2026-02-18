@@ -3,54 +3,89 @@
 <#
 .SYNOPSIS
     Active Directory Password Expiration Notification Script
-    
+
 .DESCRIPTION
     Monitors Active Directory users and sends email notifications when passwords are approaching expiration.
     Supports fine-grained password policies, multilingual messages, and comprehensive logging.
-    
-.PARAMETER searchBase
-    Distinguished Name of the OU to search for users. If not specified, uses default configured base.
-    
-.PARAMETER testMode
+
+.PARAMETER SmtpServer
+    SMTP server address for sending notification emails.
+
+.PARAMETER FromAddress
+    Email address used as the sender for notifications.
+
+.PARAMETER SearchBase
+    Distinguished Name of the OU to search for users.
+
+.PARAMETER ExpireInDays
+    Number of days before expiration to start sending notifications. Default is 10.
+
+.PARAMETER TestMode
     Switch to enable test mode. All emails will be sent to the test recipient instead of actual users.
-    
-.PARAMETER enableLogging
+
+.PARAMETER TestRecipient
+    Email address to receive all notifications when running in test mode. Default is "admin@company.com".
+
+.PARAMETER EnableLogging
     Switch to enable detailed logging to CSV file.
-    
+
+.PARAMETER LogDirectory
+    Directory path for log files. Default is "C:\Logs\PasswordNotifications".
+
+.PARAMETER Language
+    Language for email templates. Supported values: EN, PT. Default is EN.
+
 .EXAMPLE
-    .\Send-PasswordExpiryNotification.ps1
-    Runs with default configuration
-    
+    .\Send-PasswordExpiryNotification.ps1 -SmtpServer "mail.company.com" -FromAddress "noreply@company.com" -SearchBase "OU=Users,DC=domain,DC=com"
+
+    Runs with specified SMTP server and search base.
+
 .EXAMPLE
-    .\Send-PasswordExpiryNotification.ps1 -testMode -enableLogging
-    Runs in test mode with logging enabled
-    
+    .\Send-PasswordExpiryNotification.ps1 -SmtpServer "mail.company.com" -FromAddress "noreply@company.com" -SearchBase "OU=Users,DC=domain,DC=com" -TestMode -EnableLogging
+
+    Runs in test mode with logging enabled.
+
 .NOTES
-    File Name    : Send-PasswordExpiryNotification.ps1
-    Author       : Leonardo Klein Rezende
-    Requires     : PowerShell 5.1+, ActiveDirectory Module, SMTP Server Access
-    
+    File Name      : Send-PasswordExpiryNotification.ps1
+    Author         : Leonardo Klein Rezende
+    Prerequisite   : PowerShell 5.1+, ActiveDirectory Module, SMTP Server Access
+    Creation Date  : 2025-09-04
+
 .LINK
     https://github.com/leonardokr/powershell-scripts
 #>
 
+[CmdletBinding(SupportsShouldProcess)]
 param(
-    [string]$searchBase,
-    [switch]$testMode,
-    [switch]$enableLogging
+    [Parameter(Mandatory = $true)]
+    [string]$SmtpServer,
+
+    [Parameter(Mandatory = $true)]
+    [string]$FromAddress,
+
+    [Parameter(Mandatory = $true)]
+    [string]$SearchBase,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(1, 90)]
+    [int]$ExpireInDays = 10,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$TestMode,
+
+    [Parameter(Mandatory = $false)]
+    [string]$TestRecipient = "admin@company.com",
+
+    [Parameter(Mandatory = $false)]
+    [switch]$EnableLogging,
+
+    [Parameter(Mandatory = $false)]
+    [string]$LogDirectory = "C:\Logs\PasswordNotifications",
+
+    [Parameter(Mandatory = $false)]
+    [ValidateSet("EN", "PT")]
+    [string]$Language = "EN"
 )
-
-$smtpServer = "x.x.x.x"
-$expireInDays = 10
-$fromAddress = "noreply@company.com"
-$testRecipient = "admin@company.com"
-$language = "EN"  # EN or PT
-$logDirectory = "C:\Logs\PasswordNotifications"
-$defaultSearchBase = "OU=Users,DC=contoso,DC=local"
-
-if ($searchBase) { $defaultSearchBase = $searchBase }
-if ($testMode) { $testModeEnabled = $true } else { $testModeEnabled = $false }
-if ($enableLogging) { $loggingEnabled = $true } else { $loggingEnabled = $false }
 
 $messages = @{
     EN = @{
@@ -107,7 +142,7 @@ $messages = @{
     }
 }
 
-$msg = $messages[$language]
+$msg = $messages[$Language]
 function Write-LogMessage {
     param(
         [string]$Message,
@@ -252,15 +287,17 @@ function Send-PasswordExpiryAlert {
     param(
         [Microsoft.ActiveDirectory.Management.ADUser]$User,
         [hashtable]$ExpirationData,
-        [string]$RecipientEmail
+        [string]$RecipientEmail,
+        [string]$Server,
+        [string]$From
     )
-    
+
     try {
         $emailBody = Get-PasswordExpiryEmailBody -UserName $User.Name -DaysToExpire $ExpirationData.DaysToExpire
-        
+
         $mailParams = @{
-            SmtpServer = $smtpServer
-            From       = $fromAddress
+            SmtpServer = $Server
+            From       = $From
             To         = $RecipientEmail
             Subject    = $msg.EmailSubject
             Body       = $emailBody
@@ -309,27 +346,22 @@ function Write-LogEntry {
 
 try {
     Write-LogMessage "=== PASSWORD EXPIRATION NOTIFICATION STARTED ===" -Level "INFO"
-    Write-LogMessage "Search Base: $defaultSearchBase" -Level "INFO"
-    Write-LogMessage "Language: $language" -Level "INFO"
-    Write-LogMessage "Test Mode: $testModeEnabled" -Level "INFO"
-    Write-LogMessage "Logging: $loggingEnabled" -Level "INFO"
-    
+    Write-LogMessage "Search Base: $SearchBase" -Level "INFO"
+    Write-LogMessage "Language: $Language" -Level "INFO"
+    Write-LogMessage "Test Mode: $($TestMode.IsPresent)" -Level "INFO"
+    Write-LogMessage "Logging: $($EnableLogging.IsPresent)" -Level "INFO"
+
     $logFilePath = $null
-    if ($loggingEnabled) {
+    if ($EnableLogging) {
         $logFileName = "PasswordNotification_$(Get-Date -Format 'yyyy-MM-dd').csv"
-        $logFilePath = Join-Path -Path $logDirectory -ChildPath $logFileName
+        $logFilePath = Join-Path -Path $LogDirectory -ChildPath $logFileName
         
         if (-not (Initialize-LogFile -LogPath $logFilePath)) {
             Write-LogMessage "Continuing without logging..." -Level "WARN"
-            $loggingEnabled = $false
+            $EnableLogging = $false
         }
     }
-    
-    if (-not (Get-Module -Name ActiveDirectory -ListAvailable)) {
-        throw "Active Directory module not available. Please install RSAT tools."
-    }
-    
-    Import-Module ActiveDirectory -ErrorAction Stop
+
     Write-LogMessage "Active Directory module loaded successfully" -Level "SUCCESS"
     
     $defaultPasswordPolicy = Get-ADDefaultDomainPasswordPolicy -ErrorAction Stop
@@ -342,9 +374,9 @@ try {
         $_.PasswordExpired -eq $false
     }
     
-    Write-LogMessage "Searching for users in: $defaultSearchBase" -Level "INFO"
+    Write-LogMessage "Searching for users in: $SearchBase" -Level "INFO"
     
-    $adUsers = Get-ADUser -SearchBase $defaultSearchBase -Filter * -Properties Name, PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress |
+    $adUsers = Get-ADUser -SearchBase $SearchBase -Filter * -Properties Name, PasswordNeverExpires, PasswordExpired, PasswordLastSet, EmailAddress |
     Where-Object $userFilter
     
     Write-LogMessage "Found $($adUsers.Count) enabled users to process" -Level "INFO"
@@ -363,22 +395,22 @@ try {
         try {
             $expirationData = Get-PasswordExpirationData -User $user -DefaultMaxAge $maxPasswordAge
             
-            if ($expirationData.DaysToExpire -ge 0 -and $expirationData.DaysToExpire -lt $expireInDays) {
-                $recipientEmail = if ($testModeEnabled) { $testRecipient } else { $user.EmailAddress }
+            if ($expirationData.DaysToExpire -ge 0 -and $expirationData.DaysToExpire -lt $ExpireInDays) {
+                $recipientEmail = if ($TestMode) { $TestRecipient } else { $user.EmailAddress }
                 
                 if ([string]::IsNullOrWhiteSpace($recipientEmail)) {
-                    $recipientEmail = $testRecipient
+                    $recipientEmail = $TestRecipient
                     $stats.NoEmail++
                     Write-LogMessage "User without email address: $($user.Name)" -Level "WARN"
                 }
                 
-                $emailSent = Send-PasswordExpiryAlert -User $user -ExpirationData $expirationData -RecipientEmail $recipientEmail
+                $emailSent = Send-PasswordExpiryAlert -User $user -ExpirationData $expirationData -RecipientEmail $recipientEmail -Server $SmtpServer -From $FromAddress
                 
                 if ($emailSent) {
                     $stats.EmailsSent++
                 }
                 
-                if ($loggingEnabled) {
+                if ($EnableLogging) {
                     Write-LogEntry -LogPath $logFilePath -User $user -ExpirationData $expirationData -Email $recipientEmail -EmailSent $emailSent
                 }
                 
@@ -401,11 +433,11 @@ try {
     Write-LogMessage "Errors: $($stats.Errors)" -Level "INFO"
     Write-LogMessage "Skipped (not expiring): $($stats.Skipped)" -Level "INFO"
     
-    if ($testModeEnabled) {
-        Write-LogMessage "*** TEST MODE ACTIVE - All emails sent to: $testRecipient ***" -Level "WARN"
+    if ($TestMode) {
+        Write-LogMessage "*** TEST MODE ACTIVE - All emails sent to: $TestRecipient ***" -Level "WARN"
     }
     
-    if ($loggingEnabled) {
+    if ($EnableLogging) {
         Write-LogMessage "Detailed log saved to: $logFilePath" -Level "INFO"
     }
     
