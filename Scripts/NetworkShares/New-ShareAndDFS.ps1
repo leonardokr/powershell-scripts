@@ -67,7 +67,9 @@ param (
     [string]$ServerName = $env:COMPUTERNAME,
 
     [Parameter(Mandatory = $false)]
-    [string]$ShareAccess = "Everyone"
+    [string]$ShareAccess = "Everyone",
+
+    [Parameter(Mandatory = $false)]
     [string]$LogPath = "C:\Logs",
 
     [Parameter(Mandatory = $false)]

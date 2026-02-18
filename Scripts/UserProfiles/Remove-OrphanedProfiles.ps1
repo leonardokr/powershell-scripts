@@ -42,7 +42,7 @@
     Creation Date  : 2025-09-04
     Version        : 1.0.0
 
-    WARNING: This script modifies the Windows registry. Always test in a 
+    WARNING: This script modifies the Windows registry. Always test in a
     non-production environment first and ensure you have a system backup.
     
     Requires administrative privileges to modify registry.
@@ -103,7 +103,7 @@ $OrphanedCount = 0
 $RemovedCount = 0
 
 try {
-    $ProfileEntries = Get-ChildItem -Path $ProfileListPath -ErrorAction Stop | 
+    $ProfileEntries = Get-ChildItem -Path $ProfileListPath -ErrorAction Stop |
     Where-Object { $_.PSChildName -notin $ExcludedSIDs }
     
     $TotalProfiles = $ProfileEntries.Count
