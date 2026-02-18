@@ -52,6 +52,8 @@
     https://docs.microsoft.com/en-us/powershell/module/smbshare/
 #>
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'ShareAccess',
+    Justification = 'Used in New-ShareFolder function scope')]
 [CmdletBinding(SupportsShouldProcess)]
 param (
     [Parameter(Mandatory = $false)]
