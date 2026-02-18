@@ -13,7 +13,7 @@
 .PARAMETER Stage
     Execution stage: Check, Reboot, Recheck, or Finalize.
 
-.PARAMETER LogPath  
+.PARAMETER LogPath
     Directory path for log files. Default: C:\Logs\WindowsUpdates
 
 .PARAMETER RebootTimeoutMinutes
@@ -37,7 +37,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : Administrator privileges, PowerShell 5.1+, PSWindowsUpdate module
     Creation Date  : 2025-10-03
-    
+    Version        : 1.0.0
+
     MAINTENANCE WINDOW WORKFLOW:
     1. Initial update installation
     2. Server reboots and SQL Server update approval
@@ -150,8 +151,8 @@ function Get-SQLServerService {
     try {
         $sqlServices = Invoke-Command -ComputerName $ServerName -ScriptBlock {
             Get-Service | Where-Object {
-                $_.Name -like "MSSQL*" -or 
-                $_.Name -like "SQLServer*" -or 
+                $_.Name -like "MSSQL*" -or
+                $_.Name -like "SQLServer*" -or
                 $_.Name -eq "SQLSERVERAGENT" -or
                 $_.Name -like "SQL*Agent*"
             } | Select-Object Name, Status, StartType

@@ -15,6 +15,10 @@
 .PARAMETER ServerName
     The server name for DFS targets. Default is current computer name.
 
+.PARAMETER ShareAccess
+    The identity to grant full access on created SMB shares. Default is "Everyone".
+    Modify to restrict access as needed (e.g., "Domain Users", "DOMAIN\ShareGroup").
+
 .PARAMETER LogPath
     Path for the log file. Default is "C:\Logs".
 
@@ -36,7 +40,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : DFSN PowerShell module, Administrative privileges
     Creation Date  : 2025-08-10
-    
+    Version        : 1.0.0
+
     Requires:
     - Administrative privileges
     - DFS Management features installed
@@ -47,8 +52,11 @@
     https://docs.microsoft.com/en-us/powershell/module/smbshare/
 #>
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'ShareAccess',
+    Justification = 'Used in New-ShareFolder function scope')]
+[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'EnableDebugMode',
+    Justification = 'Used in Write-ScriptLog function scope')]
 [CmdletBinding(SupportsShouldProcess)]
-[System.Diagnostics.CodeAnalysis.SuppressMessage('PSReviewUnusedParameter', 'EnableDebugMode', Justification = 'Used in Write-ScriptLog function scope')]
 param (
     [Parameter(Mandatory = $false)]
     [ValidateScript({ Test-Path $_ -PathType Container })]
@@ -59,6 +67,9 @@ param (
     
     [Parameter(Mandatory = $false)]
     [string]$ServerName = $env:COMPUTERNAME,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ShareAccess = "Everyone",
 
     [Parameter(Mandatory = $false)]
     [string]$LogPath = "C:\Logs",
@@ -119,7 +130,7 @@ function New-SMBShareSafe {
         }
         
         if ($PSCmdlet.ShouldProcess($Name, "Create SMB share")) {
-            New-SmbShare -Name $Name -Path $Path -Description $Description -FullAccess "Everyone"
+            New-SmbShare -Name $Name -Path $Path -Description $Description -FullAccess $ShareAccess
             Write-ScriptLog "SMB share '$Name' created successfully" 'Info'
             return $true
         }
@@ -188,7 +199,7 @@ try {
     
     $successCount = 0
     $failureCount = 0
-    $results = @()
+    $results = [System.Collections.Generic.List[PSObject]]::new()
     
     foreach ($folder in $folders) {
         $folderName = $folder.Name
@@ -220,13 +231,13 @@ try {
             Write-ScriptLog "Failed to process folder '$folderName': $message" 'Error'
         }
         
-        $results += [PSCustomObject]@{
+        $results.Add([PSCustomObject]@{
             FolderName = $folderName
             ShareName  = $shareName
             FolderPath = $folderPath
             Status     = $status
             Message    = $message
-        }
+        })
     }
     
     Write-ScriptLog "Processing completed" 'Info'

@@ -33,7 +33,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : Administrator privileges
     Creation Date  : 2025-09-05
-    
+    Version        : 1.0.0
+
     IMPORTANT: This script requires administrator privileges to modify registry settings.
     Full dumps can be very large and consume significant disk space.
 

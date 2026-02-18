@@ -36,7 +36,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : PowerShell remoting and administrative access to target servers
     Creation Date  : 2025-09-04
-    
+    Version        : 1.0.0
+
     Requires administrative privileges on target servers.
     Large folder structures may take considerable time to process.
 
@@ -69,7 +70,7 @@ Write-Information "Starting folder permissions audit..." -InformationAction Cont
 Write-Information "Target servers: $($ServerList -join ', ')" -InformationAction Continue
 Write-Information "Base path: $BasePath" -InformationAction Continue
 
-$Report = @()
+$Report = [System.Collections.Generic.List[PSObject]]::new()
 $ProcessedServers = 0
 $TotalServers = $ServerList.Count
 
@@ -117,7 +118,7 @@ foreach ($Server in $ServerList) {
                         'Inherited'         = $Access.IsInherited
                         'ScanDate'          = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
                     }
-                    $Report += New-Object -TypeName PSObject -Property $Properties
+                    $Report.Add([PSCustomObject]$Properties)
                 }
             }
             catch {
@@ -152,8 +153,4 @@ else {
 }
 
 Write-Information "Script execution completed." -InformationAction Continue
-
-
-
-
 

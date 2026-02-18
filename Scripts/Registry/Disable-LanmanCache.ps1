@@ -33,7 +33,8 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : Administrator privileges
     Creation Date  : 2025-09-05
-    
+    Version        : 1.0.0
+
     IMPORTANT: This script requires administrator privileges to modify registry settings.
     Restart may be required for changes to take effect.
 
@@ -114,6 +115,4 @@ catch {
     Write-Error "An error occurred while disabling LanmanWorkstation cache - $($_.Exception.Message)"
     exit 1
 }
-
-
 

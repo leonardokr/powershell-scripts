@@ -44,5 +44,5 @@ Creates SMB shares and corresponding DFS namespaces for all folders in a specifi
 
 - Script automatically handles existing shares/namespaces
 - DFS namespaces are created as DomainV2 type
-- All shares are created with "Everyone" full access (modify as needed)
+- Shares are created with "Everyone" full access by default; use `-ShareAccess` to restrict (e.g., `-ShareAccess "Domain Users"`)
 - Comprehensive logging available in debug mode

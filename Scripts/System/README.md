@@ -31,6 +31,9 @@ Manages Windows Updates across multiple servers during scheduled maintenance win
 .\Invoke-WindowsUpdateMaintenance.ps1 -ServerListPath "servers.csv" -Stage Finalize
 ```
 
+**Sample CSV:**
+A sample server list file (`sample-servers.csv`) is included in this directory for reference.
+
 ### Enable-FullDump.ps1
 Configures Windows Error Reporting to create full memory dumps when applications crash.
 

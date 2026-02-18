@@ -50,6 +50,7 @@
     Author         : Leonardo Klein Rezende
     Prerequisite   : PowerShell 5.1+, ActiveDirectory Module, SMTP Server Access
     Creation Date  : 2025-09-04
+    Version        : 1.0.0
 
 .LINK
     https://github.com/leonardokr/powershell-scripts

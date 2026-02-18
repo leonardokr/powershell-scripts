@@ -62,14 +62,12 @@ Automated password expiration notification system for Active Directory users.
 **Usage:**
 
 ```powershell
-# Run with default settings
-.\Send-PasswordExpiryNotification.ps1
+# Run with specified SMTP server and search base
+.\Send-PasswordExpiryNotification.ps1 -SmtpServer "mail.company.com" -FromAddress "noreply@company.com" -SearchBase "OU=Users,DC=domain,DC=com"
 
 # Run in test mode with logging enabled
-.\Send-PasswordExpiryNotification.ps1 -testMode -enableLogging
-
-# Specify custom search base
-.\Send-PasswordExpiryNotification.ps1 -searchBase "OU=CompanyUsers,DC=domain,DC=com"
+.\Send-PasswordExpiryNotification.ps1 -SmtpServer "mail.company.com" -FromAddress "noreply@company.com" -SearchBase "OU=Users,DC=domain,DC=com" -TestMode -EnableLogging
+```
 
 ## Prerequisites
 
@@ -85,4 +83,3 @@ Automated password expiration notification system for Active Directory users.
 - Always test in non-production environment first
 - Review and modify configuration variables before production use
 - Ensure SMTP server allows relay from execution host
-```
